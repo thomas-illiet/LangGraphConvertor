@@ -1,0 +1,75 @@
+definition_version: "1.0.0"
+type: Condition
+aliases: [ConditionalRouter, IfElse, Condition]
+langflow_series: 1.12.x
+category: control
+description: Select one named branch by evaluating an explicit bounded predicate.
+langgraph_role: conditional edge router
+capabilities: [control_flow]
+config:
+  - name: operator
+    source_keys: [operator, match_type]
+    type: enum
+    description: Allowlisted predicate applied to the connected value.
+    required: true
+    options: [equals, not_equals, contains, is_empty, is_not_empty]
+    overridable: true
+  - name: compare_value
+    source_keys: [compare_value, match_text]
+    type: json
+    description: Literal comparison operand when the operator requires one.
+    required: false
+    overridable: true
+  - name: true_branch
+    source_keys: [true_branch]
+    type: string
+    description: Route label returned when the predicate is true.
+    default: true
+    overridable: false
+  - name: false_branch
+    source_keys: [false_branch]
+    type: string
+    description: Route label returned when the predicate is false.
+    default: false
+    overridable: false
+inputs:
+  - name: input_value
+    source_names: [input_value, value]
+    types: [Message, Text, str, JSON, Data, boolean]
+    description: Value evaluated by the predicate.
+    required: true
+    multiple: false
+outputs:
+  - name: "true"
+    source_names: ["true", true_output]
+    types: [Route]
+    description: True route label.
+  - name: "false"
+    source_names: ["false", false_output]
+    types: [Route]
+    description: False route label.
+state_reads:
+  - key: condition_input
+    types: [Message, Text, str, JSON, Data, boolean]
+    persisted: false
+state_writes: []
+dependencies: []
+recipe:
+  mode: router
+  async_supported: true
+  streaming: false
+  imports: []
+  construction: [Map the normalized operator to an allowlisted pure predicate.]
+  invocation: Return exactly true_branch or false_branch for use with add_conditional_edges.
+  error_handling: [Reject unsupported operands before graph execution, Never evaluate source expressions.]
+invariants:
+  - The router always selects exactly one declared branch.
+  - Predicates do not mutate graph state.
+tests:
+  - name: selects_true_and_false_routes
+    scenario: Evaluate matching and non-matching inputs.
+    expected: Return the configured true and false labels respectively.
+  - name: does_not_evaluate_code
+    scenario: Supply expression-like text as compare_value.
+    expected: Treat it as literal data.
+ignored_source_fields: [case_sensitive, regex, max_iterations]

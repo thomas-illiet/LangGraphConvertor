@@ -1,0 +1,67 @@
+definition_version: "1.0.0"
+type: Retriever
+aliases: [Retriever, VectorStoreRetriever]
+langflow_series: 1.12.x
+category: executable
+description: Retrieve the most relevant documents for an input query.
+langgraph_role: retrieval node
+capabilities: [rag]
+config:
+  - name: search_type
+    source_keys: [search_type]
+    type: enum
+    description: Vector store search strategy.
+    default: similarity
+    options: [similarity, mmr, similarity_score_threshold]
+    overridable: true
+  - name: k
+    source_keys: [k, top_k]
+    type: integer
+    description: Maximum number of documents returned.
+    default: 4
+    minimum: 1
+    maximum: 100
+    overridable: true
+inputs:
+  - name: vector_store
+    source_names: [vector_store, vectorstore]
+    types: [VectorStore]
+    description: Vector store used to construct the retriever.
+    required: true
+    multiple: false
+  - name: query
+    source_names: [query, input_value, text]
+    types: [Text, str, Message]
+    description: Query used for semantic retrieval.
+    required: true
+    multiple: false
+outputs:
+  - name: documents
+    source_names: [documents, data, output]
+    types: [Document]
+    description: Ordered relevant documents.
+state_reads:
+  - key: query
+    types: [Text, str, Message]
+    persisted: false
+state_writes:
+  - key: retrieved_documents
+    types: [Document]
+    persisted: false
+dependencies: [langchain-core]
+recipe:
+  mode: node
+  async_supported: true
+  streaming: false
+  imports: [langchain_core.vectorstores.VectorStoreRetriever]
+  construction: [Create a retriever from the connected vector store and normalized search options.]
+  invocation: Invoke the retriever with normalized query text and write ordered documents to state.
+  error_handling: [Reject empty queries, Preserve vector store errors with component context.]
+invariants:
+  - Never return more than k documents.
+  - Preserve document metadata and result order.
+tests:
+  - name: retrieves_top_k
+    scenario: Query a deterministic vector store containing more than k matches.
+    expected: Return at most k ordered documents with unchanged metadata.
+ignored_source_fields: [score_threshold, fetch_k, lambda_mult]

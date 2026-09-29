@@ -1,0 +1,81 @@
+definition_version: "1.0.0"
+type: Agent
+aliases: [Agent, ToolCallingAgent]
+langflow_series: 1.12.x
+category: executable
+description: Execute a bounded tool-calling agent over conversation state.
+langgraph_role: agent node
+capabilities: [agent, chat, tools, streaming]
+config:
+  - name: system_prompt
+    source_keys: [system_prompt, agent_description]
+    type: string
+    description: System instruction applied to the agent.
+    default: You are a helpful assistant.
+    overridable: true
+  - name: max_iterations
+    source_keys: [max_iterations]
+    type: integer
+    description: Maximum model-call loop iterations.
+    default: 15
+    minimum: 1
+    maximum: 100
+    overridable: true
+  - name: handle_parsing_errors
+    source_keys: [handle_parsing_errors]
+    type: boolean
+    description: Return recoverable tool parsing failures to the model.
+    default: true
+    overridable: false
+inputs:
+  - name: input_value
+    source_names: [input_value, message, messages]
+    types: [Message]
+    description: Conversation messages provided to the agent.
+    required: true
+    multiple: true
+  - name: model
+    source_names: [model, llm]
+    types: [LanguageModel]
+    description: Tool-capable language model resource.
+    required: true
+    multiple: false
+  - name: tools
+    source_names: [tools]
+    types: [Tool]
+    description: Tools available to the model.
+    required: false
+    multiple: true
+outputs:
+  - name: response
+    source_names: [response, message]
+    types: [Message]
+    description: Final agent message.
+state_reads:
+  - key: messages
+    types: [Message]
+    reducer: add_messages
+    persisted: true
+state_writes:
+  - key: messages
+    types: [Message]
+    reducer: add_messages
+    persisted: true
+dependencies: [langchain, langgraph]
+recipe:
+  mode: node
+  async_supported: true
+  streaming: true
+  imports: [langchain.agents.create_agent]
+  construction: [Create a tool-calling agent from the connected model, tools, and system prompt.]
+  invocation: Invoke the agent with messages and enforce the configured iteration limit.
+  error_handling: [Expose tool errors as controlled messages when enabled, Stop at the iteration cap.]
+invariants: [Never execute an undeclared tool, Preserve tool call identifiers.]
+tests:
+  - name: invokes_declared_tool
+    scenario: The mocked model requests one registered tool.
+    expected: The tool result is returned to the model and the final response is emitted.
+  - name: enforces_iteration_limit
+    scenario: The mocked model repeatedly requests tools.
+    expected: Execution stops at max_iterations with a controlled failure.
+ignored_source_fields: [add_current_date_tool, add_calculator_tool, output_schema, format_instructions]

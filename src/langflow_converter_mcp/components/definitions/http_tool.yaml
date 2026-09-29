@@ -1,0 +1,62 @@
+definition_version: "1.0.0"
+type: HTTPTool
+aliases: [APIRequest, HTTPRequest, HTTPTool]
+langflow_series: 1.12.x
+category: resource
+description: Expose a constrained outbound HTTP request as a tool.
+langgraph_role: tool factory
+capabilities: [tools, http]
+config:
+  - name: url
+    source_keys: [url, urls]
+    type: string
+    description: Allowed request endpoint or endpoint prefix.
+    required: true
+    overridable: false
+  - name: method
+    source_keys: [method]
+    type: enum
+    description: HTTP method used by the tool.
+    default: GET
+    options: [GET, POST, PUT, PATCH, DELETE]
+    overridable: false
+  - name: timeout_seconds
+    source_keys: [timeout, timeout_seconds]
+    type: number
+    description: Per-request timeout.
+    default: 30
+    minimum: 0.1
+    maximum: 120
+    overridable: false
+  - name: headers
+    source_keys: [headers]
+    type: json
+    description: Non-secret static request headers.
+    default: {}
+    overridable: false
+inputs: []
+outputs:
+  - name: tool
+    source_names: [tool, component_as_tool]
+    types: [Tool]
+    description: Constrained HTTP request tool.
+state_reads: []
+state_writes: []
+dependencies: [httpx, langchain-core]
+recipe:
+  mode: factory
+  async_supported: true
+  streaming: false
+  imports: [httpx.AsyncClient, langchain_core.tools.tool]
+  construction: [Validate the configured endpoint and build an async HTTP tool.]
+  invocation: Send only the configured method to the configured endpoint with bounded input.
+  error_handling: [Disable redirects, Bound response size, Return controlled timeout and HTTP errors.]
+invariants: [Prevent SSRF to undeclared hosts, Never log authorization headers.]
+tests:
+  - name: calls_allowed_endpoint
+    scenario: Invoke against a local mock endpoint.
+    expected: The configured method and bounded response are returned.
+  - name: rejects_redirect
+    scenario: Endpoint returns a redirect to another host.
+    expected: Tool refuses to follow the redirect.
+ignored_source_fields: [curl_input, use_curl]

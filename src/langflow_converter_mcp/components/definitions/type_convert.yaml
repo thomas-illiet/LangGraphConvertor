@@ -1,0 +1,56 @@
+definition_version: "1.0.0"
+type: TypeConvert
+aliases: [TypeConvert, DataToMessage, MessageToData]
+langflow_series: 1.12.x
+category: executable
+description: Convert between supported message, text, JSON, and simple table values.
+langgraph_role: deterministic type conversion node
+capabilities: [transformation]
+config:
+  - name: target_type
+    source_keys: [target_type, convert_to]
+    type: enum
+    description: Canonical representation produced by the node.
+    required: true
+    options: [message, text, json, table]
+    overridable: true
+inputs:
+  - name: input_value
+    source_names: [input_value, data, message, text]
+    types: [Message, Text, str, JSON, Data, Table, Document]
+    description: Value to convert.
+    required: true
+    multiple: false
+outputs:
+  - name: converted
+    source_names: [converted, data, message, text, output]
+    types: [Message, Text, str, JSON, Data, Table, Document]
+    description: Value represented by target_type.
+state_reads:
+  - key: conversion_input
+    types: [Message, Text, str, JSON, Data, Table]
+    persisted: false
+state_writes:
+  - key: conversion_output
+    types: [Message, Text, str, JSON, Data, Table]
+    persisted: false
+dependencies: [langchain-core]
+recipe:
+  mode: node
+  async_supported: true
+  streaming: false
+  imports: [langchain_core.messages.AIMessage]
+  construction: [Create an explicit conversion dispatch table for the supported source and target pairs.]
+  invocation: Convert the connected value and preserve serializable metadata where representations allow it.
+  error_handling: [Reject unsupported source and target pairs instead of applying implicit string coercion.]
+invariants:
+  - Conversion behavior is deterministic.
+  - No arbitrary object deserialization is permitted.
+tests:
+  - name: converts_message_to_text
+    scenario: Convert a message with string content to text.
+    expected: Return the exact message content.
+  - name: rejects_unsupported_pair
+    scenario: Convert an unsupported object to a table.
+    expected: Raise a typed conversion error.
+ignored_source_fields: [message_role, data_template]

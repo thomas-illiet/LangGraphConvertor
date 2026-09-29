@@ -1,0 +1,50 @@
+definition_version: "1.0.0"
+type: FileLoader
+aliases: [File, FileLoader, TextLoader, PyPDFLoader]
+langflow_series: 1.12.x
+category: executable
+description: Load text or PDF documents from a declared local path.
+langgraph_role: document loading node
+capabilities: [rag, files]
+config:
+  - name: path
+    source_keys: [path, file_path]
+    type: path
+    description: Workspace-relative text or PDF file path.
+    required: true
+    overridable: true
+  - name: encoding
+    source_keys: [encoding]
+    type: string
+    description: Text file encoding.
+    default: utf-8
+    overridable: false
+inputs: []
+outputs:
+  - name: documents
+    source_names: [documents, data, output]
+    types: [Document]
+    description: Loaded LangChain documents.
+state_reads: []
+state_writes:
+  - key: documents
+    types: [Document]
+    persisted: false
+dependencies: [langchain-community, pypdf]
+recipe:
+  mode: node
+  async_supported: true
+  streaming: false
+  imports: [langchain_community.document_loaders.TextLoader, langchain_community.document_loaders.PyPDFLoader]
+  construction: [Select a loader from the validated file extension and keep the path workspace-relative.]
+  invocation: Load documents off the event loop and preserve source metadata.
+  error_handling: [Reject paths outside the generated project data boundary, Report unreadable and unsupported files.]
+invariants: [Never download remote files, Never execute loaded content.]
+tests:
+  - name: loads_text
+    scenario: Load a UTF-8 fixture text file.
+    expected: Produce one document with content and source metadata.
+  - name: rejects_path_escape
+    scenario: Configure a parent traversal path.
+    expected: Reject before reading the file.
+ignored_source_fields: [silent_errors, use_multithreading]

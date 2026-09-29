@@ -1,0 +1,42 @@
+definition_version: "1.0.0"
+type: ChatInput
+aliases: [ChatInput]
+langflow_series: 1.12.x
+category: input
+description: Convert the public chat input into a LangChain HumanMessage.
+langgraph_role: START input adapter
+capabilities: [chat, files, session]
+config:
+  - name: sender_name
+    source_keys: [sender_name]
+    type: string
+    description: Human-readable sender name.
+    default: User
+    overridable: true
+inputs: []
+outputs:
+  - name: message
+    source_names: [message]
+    types: [Message]
+    description: Normalized human message.
+state_reads: []
+state_writes:
+  - key: messages
+    types: [Message]
+    reducer: add_messages
+    persisted: true
+dependencies: [langchain-core, langgraph]
+recipe:
+  mode: input
+  async_supported: true
+  streaming: false
+  imports: [langchain_core.messages.HumanMessage]
+  construction: [Map public input text and attachments to a HumanMessage.]
+  invocation: Append the normalized HumanMessage to the messages state channel.
+  error_handling: [Reject inputs that cannot be represented as text or message content.]
+invariants: [Preserve the caller-provided thread context, Never persist credentials.]
+tests:
+  - name: accepts_chat_text
+    scenario: Invoke the graph with one user text message.
+    expected: State contains one equivalent HumanMessage.
+ignored_source_fields: [session_id, should_store_message]

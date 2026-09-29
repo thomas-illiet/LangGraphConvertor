@@ -1,0 +1,48 @@
+[project]
+name = "langflow-converter-mcp"
+version = "0.1.0"
+description = "MCP guardrails for OpenCode-driven Langflow to LangGraph conversions"
+readme = "README.md"
+authors = [
+    { name = "Thomas ILLIET", email = "contact@thomas-illiet.fr" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28,<1",
+    "mcp>=2,<3",
+    "pydantic>=2.11,<3",
+    "pyyaml>=6,<7",
+]
+
+[project.scripts]
+langflow-converter-mcp = "langflow_converter_mcp.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.8.11,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+source-exclude = [".DS_Store"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "D"]
+ignore = ["D203", "D213"]
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<9",
+    "pytest-asyncio>=0.25,<2",
+    "ruff>=0.12,<1",
+    "ty>=0.0.1a16,<1",
+]

@@ -1,0 +1,60 @@
+definition_version: "1.0.0"
+type: TextSplitter
+aliases: [TextSplitter, RecursiveCharacterTextSplitter]
+langflow_series: 1.12.x
+category: executable
+description: Split documents into overlapping text chunks.
+langgraph_role: deterministic document transformation node
+capabilities: [rag]
+config:
+  - name: chunk_size
+    source_keys: [chunk_size]
+    type: integer
+    description: Maximum chunk length.
+    default: 1000
+    minimum: 1
+    maximum: 100000
+    overridable: true
+  - name: chunk_overlap
+    source_keys: [chunk_overlap]
+    type: integer
+    description: Characters repeated between adjacent chunks.
+    default: 200
+    minimum: 0
+    maximum: 99999
+    overridable: true
+inputs:
+  - name: documents
+    source_names: [documents, data, input_value]
+    types: [Document]
+    description: Documents to split.
+    required: true
+    multiple: true
+outputs:
+  - name: documents
+    source_names: [documents, chunks, output]
+    types: [Document]
+    description: Split document chunks.
+state_reads:
+  - key: documents
+    types: [Document]
+    persisted: false
+state_writes:
+  - key: chunks
+    types: [Document]
+    persisted: false
+dependencies: [langchain-text-splitters]
+recipe:
+  mode: node
+  async_supported: true
+  streaming: false
+  imports: [langchain_text_splitters.RecursiveCharacterTextSplitter]
+  construction: [Create a recursive splitter after ensuring overlap is smaller than chunk size.]
+  invocation: Split connected documents while copying their metadata.
+  error_handling: [Reject chunk_overlap greater than or equal to chunk_size.]
+invariants: [Preserve document source metadata on every chunk.]
+tests:
+  - name: splits_with_overlap
+    scenario: Split a document longer than chunk_size.
+    expected: Produce ordered chunks with bounded size and configured overlap.
+ignored_source_fields: [separators, keep_separator]

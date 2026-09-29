@@ -1,0 +1,49 @@
+{
+  "id": "local-rag",
+  "name": "Local RAG",
+  "data": {
+    "nodes": [
+      {
+        "id": "FileLoader-docs",
+        "data": {"type": "FileLoader", "node": {"lf_version": "1.12.0", "template": {"file_path": {"value": "data/knowledge.txt"}}, "outputs": [{"name": "documents", "types": ["Document"]}]}}
+      },
+      {
+        "id": "TextSplitter-chunks",
+        "data": {"type": "TextSplitter", "node": {"lf_version": "1.12.0", "template": {"chunk_size": {"value": 500}, "chunk_overlap": {"value": 50}, "documents": {"value": "", "input_types": ["Document"], "required": true}}, "outputs": [{"name": "documents", "types": ["Document"]}]}}
+      },
+      {
+        "id": "OpenAIEmbeddings-embeddings",
+        "data": {"type": "OpenAIEmbeddings", "node": {"lf_version": "1.12.0", "template": {"model_name": {"value": "text-embedding-model"}}, "outputs": [{"name": "embeddings", "types": ["Embeddings"]}]}}
+      },
+      {
+        "id": "Chroma-store",
+        "data": {"type": "Chroma", "node": {"lf_version": "1.12.0", "template": {"collection_name": {"value": "reference"}, "documents": {"value": "", "input_types": ["Document"]}, "embeddings": {"value": "", "input_types": ["Embeddings"], "required": true}}, "outputs": [{"name": "vector_store", "types": ["VectorStore"]}]}}
+      },
+      {
+        "id": "TextInput-query",
+        "data": {"type": "TextInput", "node": {"lf_version": "1.12.0", "template": {}, "outputs": [{"name": "text", "types": ["Text"]}]}}
+      },
+      {
+        "id": "Retriever-search",
+        "data": {"type": "Retriever", "node": {"lf_version": "1.12.0", "template": {"k": {"value": 4}, "vector_store": {"value": "", "input_types": ["VectorStore"], "required": true}, "query": {"value": "", "input_types": ["Text"], "required": true}}, "outputs": [{"name": "documents", "types": ["Document"]}]}}
+      },
+      {
+        "id": "TypeConvert-json",
+        "data": {"type": "TypeConvert", "node": {"lf_version": "1.12.0", "template": {"target_type": {"value": "json"}, "input_value": {"value": "", "input_types": ["Document"], "required": true}}, "outputs": [{"name": "converted", "types": ["JSON"]}]}}
+      },
+      {
+        "id": "JSONOutput-out",
+        "data": {"type": "JSONOutput", "node": {"lf_version": "1.12.0", "template": {"input_value": {"value": "", "input_types": ["JSON"], "required": true}}, "outputs": [{"name": "json", "types": ["JSON"]}]}}
+      }
+    ],
+    "edges": [
+      {"source": "FileLoader-docs", "target": "TextSplitter-chunks", "data": {"sourceHandle": {"name": "documents", "output_types": ["Document"]}, "targetHandle": {"fieldName": "documents", "inputTypes": ["Document"]}}},
+      {"source": "TextSplitter-chunks", "target": "Chroma-store", "data": {"sourceHandle": {"name": "documents", "output_types": ["Document"]}, "targetHandle": {"fieldName": "documents", "inputTypes": ["Document"]}}},
+      {"source": "OpenAIEmbeddings-embeddings", "target": "Chroma-store", "data": {"sourceHandle": {"name": "embeddings", "output_types": ["Embeddings"]}, "targetHandle": {"fieldName": "embeddings", "inputTypes": ["Embeddings"]}}},
+      {"source": "Chroma-store", "target": "Retriever-search", "data": {"sourceHandle": {"name": "vector_store", "output_types": ["VectorStore"]}, "targetHandle": {"fieldName": "vector_store", "inputTypes": ["VectorStore"]}}},
+      {"source": "TextInput-query", "target": "Retriever-search", "data": {"sourceHandle": {"name": "text", "output_types": ["Text"]}, "targetHandle": {"fieldName": "query", "inputTypes": ["Text"]}}},
+      {"source": "Retriever-search", "target": "TypeConvert-json", "data": {"sourceHandle": {"name": "documents", "output_types": ["Document"]}, "targetHandle": {"fieldName": "input_value", "inputTypes": ["Document"]}}},
+      {"source": "TypeConvert-json", "target": "JSONOutput-out", "data": {"sourceHandle": {"name": "converted", "output_types": ["JSON"]}, "targetHandle": {"fieldName": "input_value", "inputTypes": ["JSON"]}}}
+    ]
+  }
+}

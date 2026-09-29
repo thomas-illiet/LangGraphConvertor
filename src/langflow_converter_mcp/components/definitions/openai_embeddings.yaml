@@ -1,0 +1,57 @@
+definition_version: "1.0.0"
+type: OpenAIEmbeddings
+aliases: [OpenAIEmbeddings]
+langflow_series: 1.12.x
+category: resource
+description: Configure an OpenAI-compatible embedding model.
+langgraph_role: embeddings factory
+capabilities: [embeddings, rag]
+config:
+  - name: model
+    source_keys: [model, model_name]
+    type: string
+    description: Embedding model identifier.
+    required: true
+    overridable: true
+  - name: base_url
+    source_keys: [base_url, openai_api_base]
+    type: string
+    description: Optional OpenAI-compatible API base URL.
+    required: false
+    overridable: true
+  - name: api_key
+    source_keys: [api_key, openai_api_key]
+    type: secret
+    description: Runtime embedding API credential.
+    environment: OPENAI_API_KEY
+    overridable: false
+  - name: dimensions
+    source_keys: [dimensions]
+    type: integer
+    description: Optional embedding vector size.
+    required: false
+    minimum: 1
+    overridable: false
+inputs: []
+outputs:
+  - name: embeddings
+    source_names: [embeddings]
+    types: [Embeddings]
+    description: Configured embeddings resource.
+state_reads: []
+state_writes: []
+dependencies: [langchain-openai]
+recipe:
+  mode: factory
+  async_supported: true
+  streaming: false
+  imports: [langchain_openai.OpenAIEmbeddings]
+  construction: [Instantiate OpenAIEmbeddings with normalized provider settings.]
+  invocation: Inject the resource into the connected vector store or embedding node.
+  error_handling: [Report provider failures without exposing credentials.]
+invariants: [Use the same dimensions for indexing and querying.]
+tests:
+  - name: embeds_documents_and_query
+    scenario: Mock document and query embedding requests.
+    expected: Both paths use the same configured model and dimensions.
+ignored_source_fields: [chunk_size]

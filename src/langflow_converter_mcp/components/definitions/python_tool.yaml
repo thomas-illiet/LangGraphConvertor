@@ -1,0 +1,53 @@
+definition_version: "1.0.0"
+type: PythonTool
+aliases: [PythonTool, PythonFunctionTool]
+langflow_series: 1.12.x
+category: resource
+description: Reference a reviewed project-local Python callable as a tool.
+langgraph_role: tool factory
+capabilities: [tools, local_code]
+config:
+  - name: callable
+    source_keys: [callable, function_name]
+    type: string
+    description: Dotted import path to an allowlisted project callable.
+    required: true
+    overridable: false
+  - name: name
+    source_keys: [name, tool_name]
+    type: string
+    description: Public tool name.
+    required: true
+    overridable: false
+  - name: description
+    source_keys: [description, tool_description]
+    type: string
+    description: Model-facing tool description.
+    required: true
+    overridable: false
+inputs: []
+outputs:
+  - name: tool
+    source_names: [tool, component_as_tool]
+    types: [Tool]
+    description: Reviewed project-local tool.
+state_reads: []
+state_writes: []
+dependencies: [langchain-core]
+recipe:
+  mode: factory
+  async_supported: true
+  streaming: false
+  imports: [importlib.import_module, langchain_core.tools.StructuredTool]
+  construction: [Resolve only an explicitly allowlisted dotted callable and wrap its typed signature.]
+  invocation: Validate tool arguments before calling the reviewed function.
+  error_handling: [Convert expected exceptions to controlled tool errors, Preserve unexpected failures for tracing.]
+invariants: [Never execute source code embedded in the Langflow export, Never import outside the generated project allowlist.]
+tests:
+  - name: invokes_allowlisted_callable
+    scenario: Resolve and call a typed local fixture function.
+    expected: Validated arguments produce the expected tool result.
+  - name: rejects_embedded_code
+    scenario: The export contains Python source instead of a dotted callable.
+    expected: Conversion or construction is rejected.
+ignored_source_fields: [code]

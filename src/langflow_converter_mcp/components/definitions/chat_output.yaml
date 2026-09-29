@@ -1,0 +1,48 @@
+definition_version: "1.0.0"
+type: ChatOutput
+aliases: [ChatOutput]
+langflow_series: 1.12.x
+category: output
+description: Select and expose the final assistant message.
+langgraph_role: END output adapter
+capabilities: [chat, streaming]
+config:
+  - name: sender_name
+    source_keys: [sender_name]
+    type: string
+    description: Assistant sender label.
+    default: AI
+    overridable: false
+inputs:
+  - name: input_value
+    source_names: [input_value, message]
+    types: [Message, Text, JSON]
+    description: Value converted to the public response.
+    required: true
+    multiple: false
+outputs:
+  - name: message
+    source_names: [message]
+    types: [Message]
+    description: Public assistant response.
+state_reads:
+  - key: messages
+    types: [Message]
+    reducer: add_messages
+    persisted: true
+state_writes: []
+dependencies: [langchain-core, langgraph]
+recipe:
+  mode: output
+  async_supported: true
+  streaming: true
+  imports: [langchain_core.messages.AIMessage]
+  construction: [Select the connected value and normalize it as an AIMessage.]
+  invocation: Return the normalized message through the graph output schema.
+  error_handling: [Reject missing connected output, Preserve structured message metadata.]
+invariants: [Do not invent content when upstream output is empty.]
+tests:
+  - name: returns_last_message
+    scenario: Provide a populated assistant message from upstream.
+    expected: Public output preserves its content and metadata.
+ignored_source_fields: [session_id, should_store_message, clean_data]

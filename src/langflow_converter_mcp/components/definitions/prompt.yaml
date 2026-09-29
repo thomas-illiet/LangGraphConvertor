@@ -1,0 +1,50 @@
+definition_version: "1.0.0"
+type: Prompt
+aliases: [Prompt, PromptTemplate]
+langflow_series: 1.12.x
+category: executable
+description: Format a prompt from declared template variables.
+langgraph_role: deterministic formatting node
+capabilities: [prompt]
+config:
+  - name: template
+    source_keys: [template, prompt]
+    type: string
+    description: Prompt template using named placeholders.
+    required: true
+    overridable: true
+inputs:
+  - name: variables
+    source_names: [variables, input, input_value]
+    types: [JSON, dict, Text, str]
+    description: Values used to render the template.
+    required: false
+    multiple: false
+outputs:
+  - name: prompt
+    source_names: [prompt, text]
+    types: [PromptValue, Text, str]
+    description: Rendered prompt value.
+state_reads:
+  - key: prompt_variables
+    types: [JSON, dict]
+    persisted: true
+state_writes:
+  - key: prompt
+    types: [PromptValue, Text, str]
+    persisted: true
+dependencies: [langchain-core]
+recipe:
+  mode: node
+  async_supported: true
+  streaming: false
+  imports: [langchain_core.prompts.PromptTemplate]
+  construction: [Create PromptTemplate from the validated template string.]
+  invocation: Render the template using only declared or connected variables.
+  error_handling: [Report missing template variables with their names.]
+invariants: [Do not evaluate Python expressions from the template.]
+tests:
+  - name: renders_variables
+    scenario: Render a template with all required variables.
+    expected: Output contains the substituted values exactly once.
+ignored_source_fields: [tool_placeholder]

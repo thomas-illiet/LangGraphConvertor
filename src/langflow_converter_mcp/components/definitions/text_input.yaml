@@ -1,0 +1,41 @@
+definition_version: "1.0.0"
+type: TextInput
+aliases: [TextInput, InputText]
+langflow_series: 1.12.x
+category: input
+description: Expose a plain text value as graph input.
+langgraph_role: START input adapter
+capabilities: [text]
+config:
+  - name: default_value
+    source_keys: [value, default_value]
+    type: string
+    description: Value used when the caller omits text.
+    default: ""
+    overridable: true
+inputs: []
+outputs:
+  - name: text
+    source_names: [text, output]
+    types: [Text, str]
+    description: Normalized input text.
+state_reads: []
+state_writes:
+  - key: text
+    types: [Text, str]
+    persisted: true
+dependencies: [langgraph]
+recipe:
+  mode: input
+  async_supported: true
+  streaming: false
+  imports: []
+  construction: [Declare text in the public input state.]
+  invocation: Copy caller text or the configured default into state.
+  error_handling: [Reject non-string input values.]
+invariants: [Do not coerce structured objects to text implicitly.]
+tests:
+  - name: uses_caller_text
+    scenario: Invoke with an explicit text value.
+    expected: The same text is written to state.
+ignored_source_fields: []

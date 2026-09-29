@@ -1,0 +1,41 @@
+definition_version: "1.0.0"
+type: JSONOutput
+aliases: [JSONOutput, DataOutput]
+langflow_series: 1.12.x
+category: output
+description: Expose a JSON-compatible value from the graph.
+langgraph_role: END structured output adapter
+capabilities: [structured_output]
+config: []
+inputs:
+  - name: input_value
+    source_names: [input_value, data, json]
+    types: [JSON, Data, dict]
+    description: Structured value selected for output.
+    required: true
+    multiple: false
+outputs:
+  - name: json
+    source_names: [json, data, output]
+    types: [JSON, dict]
+    description: JSON-compatible public output.
+state_reads:
+  - key: result
+    types: [JSON, dict]
+    persisted: true
+state_writes: []
+dependencies: [langgraph]
+recipe:
+  mode: output
+  async_supported: true
+  streaming: false
+  imports: []
+  construction: [Declare a JSON-compatible output state field.]
+  invocation: Return the connected structured value without lossy string conversion.
+  error_handling: [Reject values that cannot be serialized as JSON.]
+invariants: [Preserve key names and scalar types.]
+tests:
+  - name: preserves_json
+    scenario: Provide a nested JSON object.
+    expected: Public output is structurally equal to the input object.
+ignored_source_fields: []

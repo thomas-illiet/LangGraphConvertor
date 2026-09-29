@@ -1,0 +1,38 @@
+definition_version: "1.0.0"
+type: CurrentDate
+aliases: [CurrentDate, CurrentDateTool]
+langflow_series: 1.12.x
+category: resource
+description: Provide the current date through an injected-clock tool.
+langgraph_role: tool factory
+capabilities: [tools]
+config:
+  - name: timezone
+    source_keys: [timezone]
+    type: string
+    description: IANA timezone used to format the date.
+    default: UTC
+    overridable: true
+inputs: []
+outputs:
+  - name: tool
+    source_names: [tool, component_as_tool]
+    types: [Tool]
+    description: Current-date tool.
+state_reads: []
+state_writes: []
+dependencies: [langchain-core]
+recipe:
+  mode: factory
+  async_supported: true
+  streaming: false
+  imports: [datetime.datetime, zoneinfo.ZoneInfo, langchain_core.tools.tool]
+  construction: [Create a tool around an injectable clock and validated IANA timezone.]
+  invocation: Return an ISO-8601 local date with timezone metadata.
+  error_handling: [Reject unknown timezone names.]
+invariants: [Tests must not depend on wall-clock time.]
+tests:
+  - name: formats_injected_date
+    scenario: Inject a fixed clock value and configured timezone.
+    expected: Return the corresponding deterministic ISO date.
+ignored_source_fields: []

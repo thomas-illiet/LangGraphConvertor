@@ -1,0 +1,53 @@
+definition_version: "1.0.0"
+type: MessageHistory
+aliases: [MessageHistory, Memory, MemoryBase]
+langflow_series: 1.12.x
+category: resource
+description: Map Langflow session memory to LangGraph thread persistence.
+langgraph_role: checkpointer and message-state contract
+capabilities: [memory, persistence, chat]
+config:
+  - name: backend
+    source_keys: [backend]
+    type: enum
+    description: Checkpoint backend selected for generated deployment.
+    default: platform
+    options: [platform, memory, sqlite]
+    overridable: false
+inputs:
+  - name: messages
+    source_names: [messages, input_value]
+    types: [Message]
+    description: Conversation messages to persist.
+    required: false
+    multiple: true
+outputs:
+  - name: messages
+    source_names: [messages, history]
+    types: [Message]
+    description: Messages restored for the current thread.
+state_reads:
+  - key: messages
+    types: [Message]
+    reducer: add_messages
+    persisted: true
+state_writes:
+  - key: messages
+    types: [Message]
+    reducer: add_messages
+    persisted: true
+dependencies: [langgraph]
+recipe:
+  mode: factory
+  async_supported: true
+  streaming: false
+  imports: [langgraph.graph.MessagesState]
+  construction: [Use thread_id as the sole conversation identity and select the configured checkpointer.]
+  invocation: Let the LangGraph runtime restore and persist message state per thread.
+  error_handling: [Reject invocation without required thread context when persistence is enabled.]
+invariants: [Never merge state across thread identifiers, Preserve message identifiers.]
+tests:
+  - name: isolates_threads
+    scenario: Invoke two threads with different message histories.
+    expected: Each thread observes only its own persisted messages.
+ignored_source_fields: [session_id, order, sender, sender_name, n_messages]

@@ -1,0 +1,67 @@
+{
+  "id": "basic-chat",
+  "name": "Basic Chat",
+  "data": {
+    "nodes": [
+      {
+        "id": "ChatInput-in",
+        "data": {
+          "type": "ChatInput",
+          "node": {
+            "display_name": "Chat Input",
+            "lf_version": "1.12.0",
+            "template": {},
+            "outputs": [{"name": "message", "types": ["Message"]}]
+          }
+        }
+      },
+      {
+        "id": "OpenAIModel-model",
+        "data": {
+          "type": "OpenAIModel",
+          "node": {
+            "display_name": "OpenAI Compatible Model",
+            "lf_version": "1.12.0",
+            "template": {
+              "model_name": {"value": "test-model", "input_types": []},
+              "input_value": {"value": "", "input_types": ["Message"], "required": true}
+            },
+            "outputs": [{"name": "text_output", "types": ["Message"]}]
+          }
+        }
+      },
+      {
+        "id": "ChatOutput-out",
+        "data": {
+          "type": "ChatOutput",
+          "node": {
+            "display_name": "Chat Output",
+            "lf_version": "1.12.0",
+            "template": {
+              "input_value": {"value": "", "input_types": ["Message"], "required": true}
+            },
+            "outputs": [{"name": "message", "types": ["Message"]}]
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "ChatInput-in",
+        "target": "OpenAIModel-model",
+        "data": {
+          "sourceHandle": {"name": "message", "output_types": ["Message"]},
+          "targetHandle": {"fieldName": "input_value", "inputTypes": ["Message"]}
+        }
+      },
+      {
+        "source": "OpenAIModel-model",
+        "target": "ChatOutput-out",
+        "data": {
+          "sourceHandle": {"name": "text_output", "output_types": ["Message"]},
+          "targetHandle": {"fieldName": "input_value", "inputTypes": ["Message"]}
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+definition_version: "1.0.0"
+type: Chroma
+aliases: [Chroma, ChromaVectorStore]
+langflow_series: 1.12.x
+category: resource
+description: Persist and query embedded documents in a local Chroma collection.
+langgraph_role: vector store factory
+capabilities: [rag, persistence]
+config:
+  - name: collection_name
+    source_keys: [collection_name]
+    type: string
+    description: Stable Chroma collection identifier.
+    default: langflow
+    overridable: true
+  - name: persist_directory
+    source_keys: [persist_directory]
+    type: path
+    description: Workspace-relative directory used for local persistence.
+    default: .chroma
+    overridable: true
+inputs:
+  - name: documents
+    source_names: [documents, ingest_data, data]
+    types: [Document]
+    description: Optional documents to index.
+    required: false
+    multiple: true
+  - name: embeddings
+    source_names: [embeddings, embedding]
+    types: [Embeddings]
+    description: Embedding resource used for indexing and search.
+    required: true
+    multiple: false
+outputs:
+  - name: vector_store
+    source_names: [vector_store, chroma, output]
+    types: [VectorStore]
+    description: Configured local Chroma vector store.
+state_reads:
+  - key: documents
+    types: [Document]
+    persisted: false
+state_writes: []
+dependencies: [langchain-chroma]
+recipe:
+  mode: factory
+  async_supported: true
+  streaming: false
+  imports: [langchain_chroma.Chroma]
+  construction:
+    - Resolve persist_directory beneath the generated project data directory.
+    - Instantiate Chroma with the connected embeddings and collection name.
+    - Add connected documents exactly once during explicit ingestion.
+  invocation: Expose the vector store resource to retriever nodes.
+  error_handling:
+    - Reject persistence paths that escape the configured data root.
+    - Surface collection initialization failures without retry loops.
+invariants:
+  - Never use an in-memory fallback when persistence is configured.
+  - Do not duplicate ingestion during graph invocation.
+tests:
+  - name: persists_collection
+    scenario: Index documents, recreate the factory, and query the same collection.
+    expected: The recreated vector store returns the indexed documents.
+  - name: confines_storage
+    scenario: Configure a path traversal persistence directory.
+    expected: Construction fails before Chroma accesses the path.
+ignored_source_fields: [allow_duplicates, advanced_search_filter]

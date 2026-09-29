@@ -1,0 +1,41 @@
+definition_version: "1.0.0"
+type: Calculator
+aliases: [Calculator, CalculatorTool]
+langflow_series: 1.12.x
+category: resource
+description: Provide a restricted arithmetic tool without arbitrary evaluation.
+langgraph_role: tool factory
+capabilities: [tools]
+config:
+  - name: name
+    source_keys: [name, tool_name]
+    type: string
+    description: Tool name presented to the model.
+    default: calculator
+    overridable: false
+inputs: []
+outputs:
+  - name: tool
+    source_names: [tool, component_as_tool]
+    types: [Tool]
+    description: Restricted calculator tool.
+state_reads: []
+state_writes: []
+dependencies: [langchain-core]
+recipe:
+  mode: factory
+  async_supported: true
+  streaming: false
+  imports: [langchain_core.tools.tool]
+  construction: [Build an AST-based arithmetic tool supporting numeric operators only.]
+  invocation: Return numeric results as strings suitable for tool messages.
+  error_handling: [Reject names, calls, attributes, imports, and unsupported AST nodes.]
+invariants: [Never use eval or exec, Bound expression size and exponentiation.]
+tests:
+  - name: computes_arithmetic
+    scenario: Evaluate a basic expression with precedence.
+    expected: Return the mathematically correct result.
+  - name: rejects_code
+    scenario: Submit an import or function call expression.
+    expected: Reject without executing any code.
+ignored_source_fields: []

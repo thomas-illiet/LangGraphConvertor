@@ -1,0 +1,92 @@
+definition_version: "1.0.0"
+type: OpenAIModel
+aliases: [OpenAIModel, ChatOpenAI, OpenAI]
+langflow_series: 1.12.x
+category: resource
+description: Configure an OpenAI-compatible chat model for direct or agent invocation.
+langgraph_role: model factory or model invocation node
+capabilities: [model, chat, streaming, tools]
+config:
+  - name: model
+    source_keys: [model, model_name]
+    type: string
+    description: Upstream model identifier.
+    required: true
+    overridable: true
+  - name: base_url
+    source_keys: [base_url, openai_api_base]
+    type: string
+    description: Optional OpenAI-compatible API base URL.
+    required: false
+    overridable: true
+  - name: api_key
+    source_keys: [api_key, openai_api_key]
+    type: secret
+    description: Runtime OpenAI-compatible API credential.
+    environment: OPENAI_API_KEY
+    overridable: false
+  - name: temperature
+    source_keys: [temperature]
+    type: number
+    description: Sampling temperature.
+    default: 0.0
+    minimum: 0.0
+    maximum: 2.0
+    overridable: true
+  - name: max_tokens
+    source_keys: [max_tokens, max_output_tokens]
+    type: integer
+    description: Maximum generated tokens; zero delegates to the provider.
+    default: 0
+    minimum: 0
+    overridable: true
+  - name: stream
+    source_keys: [stream, streaming]
+    type: boolean
+    description: Enable model token streaming.
+    default: true
+    overridable: true
+inputs:
+  - name: input_value
+    source_names: [input_value, messages, prompt]
+    types: [Message, PromptValue, Text, str]
+    description: Optional direct model input.
+    required: false
+    multiple: true
+outputs:
+  - name: model
+    source_names: [model, language_model]
+    types: [LanguageModel]
+    description: Configured model resource.
+  - name: message
+    source_names: [message, text_output, output]
+    types: [Message]
+    description: Direct model response when invoked as a node.
+state_reads:
+  - key: messages
+    types: [Message]
+    reducer: add_messages
+    persisted: true
+state_writes:
+  - key: messages
+    types: [Message]
+    reducer: add_messages
+    persisted: true
+dependencies: [langchain-openai, langchain-core]
+recipe:
+  mode: hybrid
+  async_supported: true
+  streaming: true
+  imports: [langchain_openai.ChatOpenAI]
+  construction: [Instantiate ChatOpenAI with normalized configuration and environment credentials.]
+  invocation: Expose the model as a resource or invoke it with connected messages when message output is used.
+  error_handling: [Propagate provider errors without leaking credentials, Preserve tool-call metadata.]
+invariants: [Never embed the API key, Preserve streaming when enabled.]
+tests:
+  - name: constructs_compatible_model
+    scenario: Configure a model and mock OpenAI-compatible endpoint.
+    expected: Requests use the selected model and base URL.
+  - name: streams_message_chunks
+    scenario: Invoke with streaming enabled.
+    expected: Message chunks are visible through LangGraph messages streaming.
+ignored_source_fields: [seed, logit_bias, json_mode]

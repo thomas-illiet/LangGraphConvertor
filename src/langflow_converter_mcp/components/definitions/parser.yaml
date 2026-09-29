@@ -1,0 +1,56 @@
+definition_version: "1.0.0"
+type: Parser
+aliases: [Parser, OutputParser, JSONParser, StructuredOutput]
+langflow_series: 1.12.x
+category: executable
+description: Parse text or message content into text or structured JSON.
+langgraph_role: deterministic output parser node
+capabilities: [transformation, structured_output]
+config:
+  - name: format
+    source_keys: [format, parser_type]
+    type: enum
+    description: Required output representation.
+    default: json
+    options: [json, text]
+    overridable: true
+inputs:
+  - name: input_value
+    source_names: [input_value, text, message]
+    types: [Text, str, Message, JSON]
+    description: Value to parse.
+    required: true
+    multiple: false
+outputs:
+  - name: parsed
+    source_names: [parsed, data, output]
+    types: [JSON, Text, str]
+    description: Parsed value in the configured format.
+state_reads:
+  - key: parser_input
+    types: [Text, str, Message, JSON]
+    persisted: false
+state_writes:
+  - key: parsed_output
+    types: [JSON, Text, str]
+    persisted: false
+dependencies: []
+recipe:
+  mode: node
+  async_supported: true
+  streaming: false
+  imports: [json.loads]
+  construction: [Select a pure parser function from the normalized format.]
+  invocation: Extract message content when necessary and parse it without executing embedded code.
+  error_handling: [Return a component-scoped parsing error for malformed JSON.]
+invariants:
+  - JSON parsing must not evaluate Python expressions.
+  - Text mode preserves the complete input content.
+tests:
+  - name: parses_json
+    scenario: Parse a valid JSON object from a message body.
+    expected: Return the equivalent structured object.
+  - name: rejects_malformed_json
+    scenario: Parse malformed JSON.
+    expected: Raise a deterministic parsing error containing no input secrets.
+ignored_source_fields: [pattern, sep, template]
