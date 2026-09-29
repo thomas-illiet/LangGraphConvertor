@@ -20,11 +20,14 @@ def create_server(workspace_root: Path) -> MCPServer:
         "langflow-converter",
         description="Strict Langflow analysis and LangGraph validation for OpenCode.",
         instructions=(
-            "Inspect a Langflow export before writing code. Stop on critical diagnostics. "
-            "Build and validate DSL 2.0, consult the graph plan, and load only its pinned "
-            "dsl:// component definitions. Generate from recipes, ports, state, invariants, and "
-            "tests; never generate from extensions.source_config. Then validate the generated "
-            "project. Never weaken checks to obtain acceptance."
+            "Require explicit workspace-relative source and output paths; never search outside "
+            "the workspace or on the internet. Inspect the Langflow export before writing code "
+            "and stop on critical or major diagnostics. Build and validate DSL 2.0, request the "
+            "graph plan, and resolve every definition named by the plan with resolve_component. "
+            "Generate only from resolved recipes, ports, state, invariants, and tests; never use "
+            "extensions.source_config. Create the uv lockfile, then inspect the project, validate "
+            "the graph, run quality and contract checks, and create the final report. Differential "
+            "HTTP testing is explicit-only. Never weaken checks to obtain acceptance."
         ),
         version="0.1.0",
     )

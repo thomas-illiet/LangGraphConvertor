@@ -5,7 +5,9 @@ tested Python LangGraph project.
 
 The MCP server does **not** generate application code. It parses the Langflow export, persists a
 durable YAML contract, exposes component and graph-planning knowledge, and owns acceptance checks.
-OpenCode writes the generated project and fixes blocking findings for at most three cycles.
+The manually selected `langflow-to-langgraph` agent orchestrates those tools, writes the generated
+project, and fixes blocking findings for at most three cycles. Enabling the MCP alone makes its
+guardrails available but does not force OpenCode's default agent to perform a conversion.
 
 ## Repository structure
 
@@ -34,8 +36,12 @@ uv sync --all-groups --frozen
 uv run pytest
 ```
 
-The checked-in `opencode.jsonc` enables the local stdio MCP. Start OpenCode at the repository root
-and select the `langflow-to-langgraph` agent, or run it non-interactively:
+The checked-in `opencode.jsonc` enables the local stdio MCP. Start OpenCode at the workspace root,
+select the `langflow-to-langgraph` agent manually, and provide both the workspace-relative source
+and generated-project paths. The agent is deliberately not configured as the default. It cannot
+inspect files outside the workspace, search the internet, or delegate to exploratory agents.
+
+You can also run it non-interactively:
 
 ```console
 opencode run --agent langflow-to-langgraph \
@@ -43,6 +49,10 @@ opencode run --agent langflow-to-langgraph \
 ```
 
 The agent must stop if the MCP reports a critical or major diagnostic.
+
+The standard interactive workflow ends after project inspection, graph import validation, quality
+checks, contract tests, and the final local report. `run_differential_tests` remains available, but
+the agent calls it only when explicitly requested with both HTTP endpoints and test cases.
 
 ## DSL 2.0 component contracts
 
