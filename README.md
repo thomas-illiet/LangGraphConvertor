@@ -40,6 +40,9 @@ The checked-in `opencode.jsonc` enables the local stdio MCP. Start OpenCode at t
 select the `langflow-to-langgraph` agent manually, and provide both the workspace-relative source
 and generated-project paths. The agent is deliberately not configured as the default. It cannot
 inspect files outside the workspace, search the internet, or delegate to exploratory agents.
+The MCP configuration explicitly uses OpenCode's workspace as its process directory, so
+`--workspace .` establishes the same boundary for both processes. If a path lies outside that
+boundary, the MCP reports the configured root and the agent stops instead of guessing path variants.
 
 You can also run it non-interactively:
 

@@ -29,7 +29,10 @@ search the filesystem to infer either path.
 Follow this mandatory workflow in order, using the fully qualified MCP tool names:
 
 1. Call `langflow-converter_inspect_langflow_export` with the exact source path. Stop immediately
-   on any critical or major diagnostic; do not look for another implementation approach.
+   on any critical or major diagnostic; do not look for another implementation approach. If the
+   diagnostic says the path cannot be resolved or escapes the configured workspace root, do not
+   retry with alternate relative or absolute paths. Report the configured root from the diagnostic
+   and ask the user to relaunch OpenCode in the intended workspace or move the input below it.
 2. Call `langflow-converter_build_conversion_dsl` to create DSL 2.0 inside the requested generated
    project, then call `langflow-converter_validate_conversion_dsl`. Never accept or migrate DSL 1.0.
 3. Call `langflow-converter_plan_langgraph` with the returned conversion ID.

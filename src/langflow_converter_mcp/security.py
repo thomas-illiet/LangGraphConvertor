@@ -27,9 +27,16 @@ class Workspace:
         try:
             resolved = candidate.resolve(strict=must_exist)
         except OSError as exc:
-            raise SecurityError(f"Cannot resolve path: {value}") from exc
+            raise SecurityError(
+                f"Cannot resolve path {value!s} under configured workspace root "
+                f"{self.root!s}. Provide an existing path below that root or relaunch "
+                "OpenCode with the intended workspace."
+            ) from exc
         if not resolved.is_relative_to(self.root):
-            raise SecurityError(f"Path escapes workspace root: {value}")
+            raise SecurityError(
+                f"Path {value!s} escapes configured workspace root {self.root!s}. "
+                "Use a path below that root or relaunch OpenCode with the intended workspace."
+            )
         if must_exist and resolved.is_file() and resolved.stat().st_size > self.max_file_bytes:
             raise SecurityError(f"File exceeds {self.max_file_bytes} bytes: {value}")
         return resolved

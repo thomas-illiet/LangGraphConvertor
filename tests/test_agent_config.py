@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import yaml
@@ -32,6 +33,7 @@ def test_conversion_agent_is_confined_to_the_workspace() -> None:
     assert permissions["question"] == "allow"
     assert permissions["bash"] == {"*": "deny", "uv lock --directory *": "allow"}
     assert "Do not search the filesystem to infer either path." in normalized_prompt
+    assert "do not retry with alternate relative or absolute paths" in normalized_prompt
 
 
 def test_conversion_agent_declares_the_deterministic_tool_order() -> None:
@@ -61,3 +63,14 @@ def test_project_does_not_force_the_conversion_agent_as_default() -> None:
     config = config_path.read_text(encoding="utf-8")
 
     assert '"default_agent"' not in config
+
+
+def test_local_mcp_uses_the_opencode_workspace_as_its_cwd() -> None:
+    """The relative MCP security root is resolved from the OpenCode workspace."""
+    config_path = Path(__file__).parents[1] / "opencode.jsonc"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+
+    local = config["mcp"]["langflow-converter"]
+    assert local["cwd"] == "."
+    workspace_index = local["command"].index("--workspace") + 1
+    assert local["command"][workspace_index] == "."

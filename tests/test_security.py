@@ -12,8 +12,11 @@ from langflow_converter_mcp.security import SecurityError, Workspace, validate_e
 def test_workspace_rejects_parent_traversal(tmp_path: Path) -> None:
     """Relative parent traversal cannot escape the configured workspace."""
     workspace = Workspace(tmp_path)
-    with pytest.raises(SecurityError, match="escapes workspace"):
+    with pytest.raises(SecurityError, match="escapes configured workspace root") as raised:
         workspace.resolve("../outside.txt", must_exist=False)
+
+    assert str(tmp_path) in str(raised.value)
+    assert "relaunch OpenCode" in str(raised.value)
 
 
 def test_workspace_rejects_symlink_escape(tmp_path: Path) -> None:
@@ -24,8 +27,19 @@ def test_workspace_rejects_symlink_escape(tmp_path: Path) -> None:
     link.symlink_to(outside)
     workspace = Workspace(tmp_path)
 
-    with pytest.raises(SecurityError, match="escapes workspace"):
+    with pytest.raises(SecurityError, match="escapes configured workspace root"):
         workspace.read_text("link.txt")
+
+
+def test_workspace_reports_root_for_missing_path(tmp_path: Path) -> None:
+    """Missing paths identify the configured boundary without inviting path guessing."""
+    workspace = Workspace(tmp_path)
+
+    with pytest.raises(SecurityError, match="Cannot resolve path") as raised:
+        workspace.read_text("missing.json")
+
+    assert str(tmp_path) in str(raised.value)
+    assert "relaunch OpenCode" in str(raised.value)
 
 
 def test_endpoint_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
