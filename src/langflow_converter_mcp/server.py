@@ -9,6 +9,7 @@ from mcp.server import MCPServer
 from langflow_converter_mcp.resources import register_resources
 from langflow_converter_mcp.security import Workspace
 from langflow_converter_mcp.service import ConversionService
+from langflow_converter_mcp.tool_logging import ToolCallLoggingMiddleware
 from langflow_converter_mcp.tools import register_tools
 
 
@@ -30,6 +31,7 @@ def create_server(workspace_root: Path) -> MCPServer:
             "HTTP testing is explicit-only. Never weaken checks to obtain acceptance."
         ),
         version="0.1.0",
+        middleware=[ToolCallLoggingMiddleware()],
     )
 
     register_tools(server, service)

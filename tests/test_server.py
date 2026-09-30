@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
 from mcp import Client, StdioServerParameters
 
 from langflow_converter_mcp.server import create_server
+from langflow_converter_mcp.tool_logging import ToolCallLoggingMiddleware
 
 
 @pytest.mark.asyncio
@@ -86,3 +88,32 @@ async def test_stdio_round_trip(tmp_path: Path, flow_file: Path) -> None:
     assert result.structured_content
     assert result.structured_content["status"] == "ok"
     assert result.structured_content["data"]["component_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_tool_calls_are_logged_without_arguments(caplog: pytest.LogCaptureFixture) -> None:
+    """Tool middleware logs lifecycle metadata but never caller-provided arguments."""
+    middleware = ToolCallLoggingMiddleware()
+    context = type(
+        "ToolContext",
+        (),
+        {
+            "method": "tools/call",
+            "params": {
+                "name": "inspect_langflow_export",
+                "arguments": {"source_path": "private-flow.json"},
+            },
+        },
+    )()
+
+    async def call_next(_context: object) -> dict[str, Any]:
+        """Return a minimal successful handler result."""
+        return {"ok": True}
+
+    caplog.set_level("INFO", logger="langflow_converter_mcp.tools")
+    await middleware(context, call_next)  # type: ignore[arg-type]
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("MCP tool call started: tool=inspect_langflow_export" in item for item in messages)
+    assert any("MCP tool call completed: tool=inspect_langflow_export" in item for item in messages)
+    assert all("private-flow.json" not in item for item in messages)
