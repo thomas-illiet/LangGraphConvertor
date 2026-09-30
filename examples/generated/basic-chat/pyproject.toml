@@ -5,7 +5,7 @@ description = "LangGraph conversion of the basic-chat Langflow flow"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "langchain-core>=0.3,<1.0",
+    "langchain-core>=0.3,<2.0",
     "langchain-openai>=0.3,<1.0",
     "langgraph>=0.4,<1.0",
 ]
