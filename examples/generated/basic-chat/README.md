@@ -1,4 +1,4 @@
-# qwen-reliable-basic-chat-v4
+# basic-chat
 
 LangGraph conversion of the `examples/basic-chat.json` Langflow flow.
 
