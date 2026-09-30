@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
-from langflow_converter_mcp.models import Status
+from langflow_converter_mcp.models import CheckResult, Status
 from langflow_converter_mcp.security import Workspace
 from langflow_converter_mcp.service import ConversionService
 
@@ -22,6 +24,8 @@ def test_conversion_lifecycle(tmp_path: Path, flow_file: Path) -> None:
 
     built = service.build_conversion_dsl(inspected.conversion_id, "contract/workflow.yaml")
     assert built.status is Status.OK
+    assert built.data["dsl"]["dsl_version"] == "2.0"
+    assert len(built.data["dsl"]["components"]) == 2
     assert (tmp_path / "contract/workflow.yaml").is_file()
 
     validated = service.validate_conversion_dsl("contract/workflow.yaml")
@@ -43,6 +47,38 @@ def test_resolve_component_returns_complete_pinned_definition(tmp_path: Path) ->
     assert result.data["definition"]["recipe"]["mode"] == "hybrid"
     assert len(result.data["sha256"]) == 64
     assert result.data["uri"] == "dsl://components/OpenAIModel"
+
+
+def test_modified_canonical_dsl_is_rejected(tmp_path: Path, flow_file: Path) -> None:
+    """Validation rejects changes to the MCP-produced DSL for an active conversion."""
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow_file.name).conversion_id
+    assert conversion_id
+    service.build_conversion_dsl(conversion_id, "generated/workflow.yaml")
+    workflow = tmp_path / "generated/workflow.yaml"
+    payload = yaml.safe_load(workflow.read_text(encoding="utf-8"))
+    payload["components"][0]["config"]["sender_name"] = "Tampered"
+    workflow.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    result = service.validate_conversion_dsl("generated/workflow.yaml")
+
+    assert result.status is Status.ERROR
+    assert any(item.code == "canonical_dsl_modified" for item in result.diagnostics)
+
+
+def test_build_conversion_dsl_rejects_a_directory_output_path(
+    tmp_path: Path, flow_file: Path
+) -> None:
+    """DSL persistence requires an explicit YAML filename and creates no ambiguous file."""
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow_file.name).conversion_id
+    assert conversion_id
+
+    result = service.build_conversion_dsl(conversion_id, "generated/project")
+
+    assert result.status is Status.ERROR
+    assert result.diagnostics[0].code == "invalid_dsl_output_path"
+    assert not (tmp_path / "generated/project").exists()
 
 
 def test_project_inspection_and_report(tmp_path: Path, flow_file: Path) -> None:
@@ -72,12 +108,93 @@ def test_rerun_replaces_resolved_project_findings(tmp_path: Path, flow_file: Pat
 
     for relative in ("pyproject.toml", "uv.lock", "langgraph.json", ".env.example"):
         (project / relative).write_text("{}", encoding="utf-8")
+    (project / "langgraph.json").write_text(
+        json.dumps({"graphs": {"agent": "app.graph:graph"}}), encoding="utf-8"
+    )
+    service.build_conversion_dsl(conversion_id, "generated/workflow.yaml")
     (project / "src").mkdir()
     (project / "tests").mkdir()
 
     assert service.inspect_generated_project("generated", conversion_id).status is Status.OK
     report = service.create_validation_report(conversion_id)
-    assert report.major_count == 0
+    assert not any(item.code == "missing_project_file" for item in report.diagnostics)
+    assert not report.accepted
+
+
+def test_project_inspection_rejects_a_tampered_dsl_copy(tmp_path: Path, flow_file: Path) -> None:
+    """The project gate compares workflow.yaml with the authoritative conversion DSL."""
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow_file.name).conversion_id
+    assert conversion_id
+    project = tmp_path / "generated"
+    project.mkdir()
+    for relative in ("pyproject.toml", "uv.lock", "langgraph.json", ".env.example"):
+        (project / relative).write_text("{}", encoding="utf-8")
+    service.build_conversion_dsl(conversion_id, "generated/workflow.yaml")
+    payload = yaml.safe_load((project / "workflow.yaml").read_text(encoding="utf-8"))
+    payload["components"][0]["config"]["sender_name"] = "Tampered"
+    (project / "workflow.yaml").write_text(
+        yaml.safe_dump(payload, sort_keys=False), encoding="utf-8"
+    )
+    (project / "src").mkdir()
+    (project / "tests").mkdir()
+
+    result = service.inspect_generated_project("generated", conversion_id)
+
+    assert result.status is Status.ERROR
+    assert any(item.code == "generated_dsl_mismatch" for item in result.diagnostics)
+
+
+def test_project_inspection_rejects_duplicate_source_packages(
+    tmp_path: Path, flow_file: Path
+) -> None:
+    """The project gate rejects the same package at the root and under src/."""
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow_file.name).conversion_id
+    assert conversion_id
+    project = tmp_path / "generated"
+    project.mkdir()
+    for relative in ("pyproject.toml", "uv.lock", ".env.example"):
+        (project / relative).write_text("{}", encoding="utf-8")
+    (project / "langgraph.json").write_text(
+        json.dumps({"graphs": {"agent": "app.graph:graph"}}), encoding="utf-8"
+    )
+    service.build_conversion_dsl(conversion_id, "generated/workflow.yaml")
+    for package in (project / "src/app", project / "app"):
+        package.mkdir(parents=True)
+        (package / "__init__.py").write_text("", encoding="utf-8")
+    (project / "tests").mkdir()
+
+    result = service.inspect_generated_project("generated", conversion_id)
+
+    assert result.status is Status.ERROR
+    assert any(item.code == "duplicate_source_package" for item in result.diagnostics)
+
+
+def test_project_inspection_rejects_src_prefixed_graph_modules(
+    tmp_path: Path, flow_file: Path
+) -> None:
+    """The project gate explains the correct import target for a src layout."""
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow_file.name).conversion_id
+    assert conversion_id
+    project = tmp_path / "generated"
+    project.mkdir()
+    for relative in ("pyproject.toml", "uv.lock", ".env.example"):
+        (project / relative).write_text("{}", encoding="utf-8")
+    (project / "langgraph.json").write_text(
+        json.dumps({"graphs": {"agent": "src.app.graph:graph"}}), encoding="utf-8"
+    )
+    service.build_conversion_dsl(conversion_id, "generated/workflow.yaml")
+    package = project / "src/app"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (project / "tests").mkdir()
+
+    result = service.inspect_generated_project("generated", conversion_id)
+
+    assert result.status is Status.ERROR
+    assert any(item.code == "invalid_graph_module_path" for item in result.diagnostics)
 
 
 @pytest.mark.asyncio
@@ -96,7 +213,65 @@ async def test_graph_contract_import(tmp_path: Path, flow_file: Path) -> None:
     (project / "langgraph.json").write_text(
         json.dumps({"graphs": {"agent": "app:graph"}}), encoding="utf-8"
     )
+    (project / "pyproject.toml").write_text(
+        '[project]\nname = "generated-test"\nversion = "0.1.0"\nrequires-python = ">=3.12"\n',
+        encoding="utf-8",
+    )
+    subprocess.run(
+        ["uv", "lock", "--directory", str(project), "--offline"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
     result = await service.validate_graph_contract("generated", conversion_id)
 
     assert result.status is Status.OK, result.model_dump()
+
+
+def test_validation_report_requires_every_mandatory_stage(tmp_path: Path, flow_file: Path) -> None:
+    """Acceptance fails closed until lifecycle stages and checks are all recorded."""
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow_file.name).conversion_id
+    assert conversion_id
+
+    incomplete = service.create_validation_report(conversion_id)
+
+    assert not incomplete.accepted
+    missing = next(
+        item for item in incomplete.diagnostics if item.code == "missing_validation_stage"
+    )
+    assert "build_conversion_dsl" in (missing.evidence or "")
+    assert "project-structure" in (missing.evidence or "")
+
+
+def test_validation_report_accepts_only_a_complete_successful_run(
+    tmp_path: Path, flow_file: Path
+) -> None:
+    """A complete ordered lifecycle with every successful check can be accepted."""
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow_file.name).conversion_id
+    assert conversion_id
+    service.build_conversion_dsl(conversion_id, "generated/workflow.yaml")
+    service.validate_conversion_dsl("generated/workflow.yaml")
+    service.plan_langgraph(conversion_id)
+    for component_type in ("ChatInput", "ChatOutput", "OpenAIModel"):
+        service.resolve_component(component_type, conversion_id)
+    required_checks = (
+        "project-structure",
+        "graph-contract",
+        "ruff-format",
+        "ruff-check",
+        "type-check",
+        "tests",
+        "contract-tests",
+    )
+    service.checks_by_id[conversion_id] = [
+        CheckResult(name=name, status=Status.OK, return_code=0) for name in required_checks
+    ]
+
+    report = service.create_validation_report(conversion_id)
+
+    assert report.accepted
+    assert report.critical_count == 0
+    assert report.major_count == 0

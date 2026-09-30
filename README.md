@@ -65,6 +65,10 @@ state reads and writes, reducers, dependencies, imports, construction and invoca
 error behavior, invariants, and required tests. OpenCode can therefore generate a project from the
 DSL and MCP resources without a hidden Python component catalog.
 
+`resolve_component` accepts the current `conversion_id`; the conversion agent always supplies it so
+the final acceptance report can prove that every planned definition was resolved during that run.
+The report also fails closed when any mandatory lifecycle stage or acceptance check is missing.
+
 The authoritative resources are:
 
 - `dsl://components`: lightweight index of the 20 supported definitions.

@@ -25,15 +25,26 @@ def test_conversion_agent_is_confined_to_the_workspace() -> None:
     normalized_prompt = " ".join(prompt.split())
 
     assert isinstance(permissions, dict)
-    assert permissions["external_directory"] == "deny"
-    assert permissions["webfetch"] == "deny"
-    assert permissions["websearch"] == "deny"
-    assert permissions["task"] == "deny"
-    assert permissions["skill"] == "deny"
+    assert frontmatter["temperature"] == 0
+    assert frontmatter["steps"] == 80
+    assert frontmatter["options"] == {"reasoningEffort": "none"}
+    assert permissions["*"] == "deny"
+    assert permissions["edit"] == "allow"
     assert permissions["question"] == "allow"
     assert permissions["bash"] == {"*": "deny", "uv lock --directory *": "allow"}
+    assert permissions["langflow-converter_*"] == "allow"
     assert "Do not search the filesystem to infer either path." in normalized_prompt
     assert "do not retry with alternate relative or absolute paths" in normalized_prompt
+    assert (
+        "Filesystem discovery and reading tools are intentionally unavailable." in normalized_prompt
+    )
+    assert "A denied tool is a hard boundary" in normalized_prompt
+    assert normalized_prompt.startswith("/no_think")
+    assert "call the file-writing tool immediately for exactly one file" in normalized_prompt
+    assert "Do not draft multiple files" in normalized_prompt
+    assert "`<generated-project-directory>/workflow.yaml`" in normalized_prompt
+    assert "Use exactly one source layout: `src/<package_name>/`." in normalized_prompt
+    assert "never prefix the module with `src.`" in normalized_prompt
 
 
 def test_conversion_agent_declares_the_deterministic_tool_order() -> None:

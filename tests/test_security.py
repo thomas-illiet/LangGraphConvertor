@@ -24,7 +24,12 @@ def test_workspace_rejects_symlink_escape(tmp_path: Path) -> None:
     outside = tmp_path.parent / "outside-target.txt"
     outside.write_text("secret", encoding="utf-8")
     link = tmp_path / "link.txt"
-    link.symlink_to(outside)
+    try:
+        link.symlink_to(outside)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows symlink creation requires Developer Mode or elevation")
+        raise
     workspace = Workspace(tmp_path)
 
     with pytest.raises(SecurityError, match="escapes configured workspace root"):

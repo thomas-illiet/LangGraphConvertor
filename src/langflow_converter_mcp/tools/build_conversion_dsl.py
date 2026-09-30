@@ -11,5 +11,5 @@ def register(server: MCPServer, service: ConversionService) -> None:
 
     @server.tool(structured_output=True)
     def build_conversion_dsl(conversion_id: str, output_path: str) -> ToolResult:
-        """Persist the canonical YAML DSL for a previously inspected conversion."""
+        """Persist the canonical DSL to a YAML file path, such as project/workflow.yaml."""
         return service.build_conversion_dsl(conversion_id, output_path)
