@@ -229,6 +229,47 @@ async def test_graph_contract_import(tmp_path: Path, flow_file: Path) -> None:
     assert result.status is Status.OK, result.model_dump()
 
 
+@pytest.mark.asyncio
+async def test_quality_checks_reject_tools_missing_from_project_environment(
+    tmp_path: Path, flow_file: Path
+) -> None:
+    """Project-local quality gates never fall back to executables from the server PATH."""
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow_file.name).conversion_id
+    assert conversion_id
+    (tmp_path / "generated").mkdir()
+
+    result = await service.run_quality_checks("generated", conversion_id)
+
+    assert result.status is Status.ERROR
+    checks = result.data["checks"]
+    project_checks = [check for check in checks if check["name"] != "type-check"]
+    assert all(check["return_code"] == 127 for check in project_checks)
+    assert all(
+        "Required project-local tool is missing" in check["output"] for check in project_checks
+    )
+    type_check = next(check for check in checks if check["name"] == "type-check")
+    assert "Required project-local tool is missing" not in type_check["output"]
+
+
+@pytest.mark.asyncio
+async def test_contract_tests_reject_project_without_local_pytest(
+    tmp_path: Path, flow_file: Path
+) -> None:
+    """The contract gate requires pytest from the generated project's own environment."""
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow_file.name).conversion_id
+    assert conversion_id
+    (tmp_path / "generated").mkdir()
+
+    result = await service.run_contract_tests("generated", conversion_id)
+
+    assert result.status is Status.ERROR
+    check = result.data["check"]
+    assert check["return_code"] == 127
+    assert "Required project-local tool is missing" in check["output"]
+
+
 def test_validation_report_requires_every_mandatory_stage(tmp_path: Path, flow_file: Path) -> None:
     """Acceptance fails closed until lifecycle stages and checks are all recorded."""
     service = ConversionService(Workspace(tmp_path))

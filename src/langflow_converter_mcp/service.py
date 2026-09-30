@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -454,6 +455,52 @@ class ConversionService:
                 duration_ms=int((time.monotonic() - started) * 1000),
             )
 
+    @staticmethod
+    def _project_tool(project: Path, name: str) -> Path:
+        directory = "Scripts" if os.name == "nt" else "bin"
+        executable = f"{name}.exe" if os.name == "nt" else name
+        return project / ".venv" / directory / executable
+
+    async def _run_project_tool(
+        self,
+        name: str,
+        tool: str,
+        arguments: list[str],
+        project: Path,
+        timeout: float,
+    ) -> CheckResult:
+        executable = self._project_tool(project, tool)
+        if not executable.is_file():
+            return CheckResult(
+                name=name,
+                status=Status.ERROR,
+                return_code=127,
+                output=(
+                    f"Required project-local tool is missing: {executable.relative_to(project)}. "
+                    f"Declare {tool!r} in dependency-groups.dev and rebuild uv.lock."
+                ),
+            )
+        return await self._run(name, [str(executable), *arguments], project, timeout)
+
+    async def _run_validator_tool(
+        self,
+        name: str,
+        tool: str,
+        arguments: list[str],
+        project: Path,
+        timeout: float,
+    ) -> CheckResult:
+        executable_name = f"{tool}.exe" if os.name == "nt" else tool
+        executable = Path(sys.executable).with_name(executable_name)
+        if not executable.is_file():
+            return CheckResult(
+                name=name,
+                status=Status.ERROR,
+                return_code=127,
+                output=f"Required validator tool is missing: {executable}.",
+            )
+        return await self._run(name, [str(executable), *arguments], project, timeout)
+
     async def run_quality_checks(
         self, project_path: str, conversion_id: str, timeout_seconds: float = 120
     ) -> ToolResult:
@@ -462,13 +509,25 @@ class ConversionService:
             project = self.workspace.resolve(project_path)
         except SecurityError as exc:
             return self._error(exc, "unsafe_project_path")
-        commands = (
-            ("ruff-format", ["uv", "run", "--frozen", "ruff", "format", "--check", "."]),
-            ("ruff-check", ["uv", "run", "--frozen", "ruff", "check", "."]),
-            ("type-check", ["uv", "run", "--frozen", "ty", "check", "src"]),
-            ("tests", ["uv", "run", "--frozen", "pytest", "-q"]),
+        project_commands = (
+            ("ruff-format", "ruff", ["format", "--check", "."]),
+            ("ruff-check", "ruff", ["check", "."]),
+            ("tests", "pytest", ["-q"]),
         )
-        checks = [await self._run(name, argv, project, timeout_seconds) for name, argv in commands]
+        checks = [
+            await self._run_project_tool(name, tool, arguments, project, timeout_seconds)
+            for name, tool, arguments in project_commands
+        ]
+        checks.insert(
+            2,
+            await self._run_validator_tool(
+                "type-check",
+                "ty",
+                ["check", "--python", str(project / ".venv"), "src"],
+                project,
+                timeout_seconds,
+            ),
+        )
         self._replace_checks(conversion_id, checks)
         diagnostics = [
             Diagnostic(
@@ -496,9 +555,10 @@ class ConversionService:
             project = self.workspace.resolve(project_path)
         except SecurityError as exc:
             return self._error(exc, "unsafe_project_path")
-        check = await self._run(
+        check = await self._run_project_tool(
             "contract-tests",
-            ["uv", "run", "--frozen", "pytest", "-q", "-m", "contract"],
+            "pytest",
+            ["-q", "-m", "contract"],
             project,
             timeout_seconds,
         )

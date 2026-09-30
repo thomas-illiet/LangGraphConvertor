@@ -62,9 +62,12 @@ Follow this mandatory workflow in order, using the fully qualified MCP tool name
    tests, and a copy of the MCP-produced DSL. Use exactly one source layout:
    `src/<package_name>/`. Never create the same package at the project root. In `langgraph.json`,
    declare the graph as `<package_name>.graph:graph`; never prefix the module with `src.`. Configure
-   the uv project and pytest so the `src/` package is importable.
-7. Run `uv lock --directory <generated-project-directory>` exactly once to create `uv.lock`. Do not
-   run any other shell command.
+   the uv project and pytest so the `src/` package is importable. Declare `ruff` and `pytest` as
+   project-local development dependencies in `[dependency-groups].dev`.
+7. Run `uv lock --directory <generated-project-directory>` to create `uv.lock`. If dependency
+   resolution fails, correct only the dependency metadata identified by the resolver and retry.
+   Never remove the mandatory local development tools to make locking succeed. Do not run any
+   other shell command.
 8. Call, in order, `langflow-converter_inspect_generated_project`,
    `langflow-converter_validate_graph_contract`, `langflow-converter_run_quality_checks`, and
    `langflow-converter_run_contract_tests`. Fix critical and major findings for at most three

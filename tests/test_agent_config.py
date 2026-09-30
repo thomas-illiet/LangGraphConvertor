@@ -45,6 +45,8 @@ def test_conversion_agent_is_confined_to_the_workspace() -> None:
     assert "`<generated-project-directory>/workflow.yaml`" in normalized_prompt
     assert "Use exactly one source layout: `src/<package_name>/`." in normalized_prompt
     assert "never prefix the module with `src.`" in normalized_prompt
+    assert "MCP validation environment supplies the type checker" in normalized_prompt
+    assert "Never remove the mandatory local development tools" in normalized_prompt
 
 
 def test_conversion_agent_declares_the_deterministic_tool_order() -> None:
