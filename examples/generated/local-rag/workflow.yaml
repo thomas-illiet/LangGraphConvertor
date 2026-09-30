@@ -1,0 +1,327 @@
+dsl_version: '2.0'
+flow:
+  id: local-rag
+  name: Local RAG
+  langflow_version: 1.12.0
+  source_sha256: 176acb3ad1ecebd1c75a24ab238dcdef1bd33fa9bde94049241bbd78700342a7
+components:
+- id: FileLoader-docs
+  type: FileLoader
+  definition:
+    version: 1.0.0
+    sha256: d13fc8e451afff549b336805db7485ab58c26b2a1845cceb7c7a217ba0d8c075
+    uri: dsl://components/FileLoader
+  display_name: FileLoader
+  category: executable
+  config:
+    path: data/knowledge.txt
+    encoding: utf-8
+  extensions:
+    source_config: {}
+  inputs: []
+  outputs:
+  - name: documents
+    types:
+    - Document
+    required: false
+    multiple: false
+- id: TextSplitter-chunks
+  type: TextSplitter
+  definition:
+    version: 1.0.0
+    sha256: 8a84815ad0fe51457bf07bb5ef6d7b62dae29003a7f0266907a8561a5d8449b7
+    uri: dsl://components/TextSplitter
+  display_name: TextSplitter
+  category: executable
+  config:
+    chunk_size: 500
+    chunk_overlap: 50
+  extensions:
+    source_config: {}
+  inputs:
+  - name: documents
+    types:
+    - Document
+    required: true
+    multiple: true
+  outputs:
+  - name: documents
+    types:
+    - Document
+    required: false
+    multiple: false
+- id: OpenAIEmbeddings-embeddings
+  type: OpenAIEmbeddings
+  definition:
+    version: 1.0.0
+    sha256: 5247ac270db834164437d958d1e7052057b0ab263636c140e85c5cb88b5a6e30
+    uri: dsl://components/OpenAIEmbeddings
+  display_name: OpenAIEmbeddings
+  category: resource
+  config:
+    model: text-embedding-model
+  extensions:
+    source_config: {}
+  inputs: []
+  outputs:
+  - name: embeddings
+    types:
+    - Embeddings
+    required: false
+    multiple: false
+- id: Chroma-store
+  type: Chroma
+  definition:
+    version: 1.0.0
+    sha256: d1b3fb0fba718b43b431378ab23a81592ac448a0fc708f76731f652fd3c0fb0a
+    uri: dsl://components/Chroma
+  display_name: Chroma
+  category: resource
+  config:
+    collection_name: reference
+    persist_directory: .chroma
+  extensions:
+    source_config: {}
+  inputs:
+  - name: documents
+    types:
+    - Document
+    required: false
+    multiple: true
+  - name: embeddings
+    types:
+    - Embeddings
+    required: true
+    multiple: false
+  outputs:
+  - name: vector_store
+    types:
+    - VectorStore
+    required: false
+    multiple: false
+- id: TextInput-query
+  type: TextInput
+  definition:
+    version: 1.0.0
+    sha256: 0a540594d26838a0e733b75da47086f2926a16574c244440b68a7409b2ee1618
+    uri: dsl://components/TextInput
+  display_name: TextInput
+  category: input
+  config:
+    default_value: ''
+  extensions:
+    source_config: {}
+  inputs: []
+  outputs:
+  - name: text
+    types:
+    - Text
+    - str
+    required: false
+    multiple: false
+- id: Retriever-search
+  type: Retriever
+  definition:
+    version: 1.0.0
+    sha256: 9abdaae494385344c7a7afe50d206b6304f1d01ac391abb208b85f8bb8075844
+    uri: dsl://components/Retriever
+  display_name: Retriever
+  category: executable
+  config:
+    k: 4
+    search_type: similarity
+  extensions:
+    source_config: {}
+  inputs:
+  - name: vector_store
+    types:
+    - VectorStore
+    required: true
+    multiple: false
+  - name: query
+    types:
+    - Text
+    - str
+    - Message
+    required: true
+    multiple: false
+  outputs:
+  - name: documents
+    types:
+    - Document
+    required: false
+    multiple: false
+- id: TypeConvert-json
+  type: TypeConvert
+  definition:
+    version: 1.0.0
+    sha256: d98be2d02af26ff9e845793e77e8415d213116156bf57f6ba810ce30195b7fb5
+    uri: dsl://components/TypeConvert
+  display_name: TypeConvert
+  category: executable
+  config:
+    target_type: json
+  extensions:
+    source_config: {}
+  inputs:
+  - name: input_value
+    types:
+    - Message
+    - Text
+    - str
+    - JSON
+    - Data
+    - Table
+    - Document
+    required: true
+    multiple: false
+  outputs:
+  - name: converted
+    types:
+    - Message
+    - Text
+    - str
+    - JSON
+    - Data
+    - Table
+    - Document
+    required: false
+    multiple: false
+- id: JSONOutput-out
+  type: JSONOutput
+  definition:
+    version: 1.0.0
+    sha256: b78ebd264d12200077b805cc2fc7add195efeec598874a930f93427fc3eecadb
+    uri: dsl://components/JSONOutput
+  display_name: JSONOutput
+  category: output
+  config: {}
+  extensions:
+    source_config: {}
+  inputs:
+  - name: input_value
+    types:
+    - JSON
+    - Data
+    - dict
+    required: true
+    multiple: false
+  outputs:
+  - name: json
+    types:
+    - JSON
+    - dict
+    required: false
+    multiple: false
+connections:
+- source: FileLoader-docs
+  source_port: documents
+  target: TextSplitter-chunks
+  target_port: documents
+  types:
+  - Document
+- source: TextSplitter-chunks
+  source_port: documents
+  target: Chroma-store
+  target_port: documents
+  types:
+  - Document
+- source: OpenAIEmbeddings-embeddings
+  source_port: embeddings
+  target: Chroma-store
+  target_port: embeddings
+  types:
+  - Embeddings
+- source: Chroma-store
+  source_port: vector_store
+  target: Retriever-search
+  target_port: vector_store
+  types:
+  - VectorStore
+- source: TextInput-query
+  source_port: text
+  target: Retriever-search
+  target_port: query
+  types:
+  - Text
+  - str
+- source: Retriever-search
+  source_port: documents
+  target: TypeConvert-json
+  target_port: input_value
+  types:
+  - Document
+- source: TypeConvert-json
+  source_port: converted
+  target: JSONOutput-out
+  target_port: input_value
+  types:
+  - Message
+  - Text
+  - str
+  - JSON
+  - Data
+  - Table
+  - Document
+state:
+- name: Chroma-store.vector_store
+  value_types:
+  - VectorStore
+  producer: Chroma-store
+  consumers:
+  - Retriever-search
+- name: FileLoader-docs.documents
+  value_types:
+  - Document
+  producer: FileLoader-docs
+  consumers:
+  - TextSplitter-chunks
+- name: OpenAIEmbeddings-embeddings.embeddings
+  value_types:
+  - Embeddings
+  producer: OpenAIEmbeddings-embeddings
+  consumers:
+  - Chroma-store
+- name: Retriever-search.documents
+  value_types:
+  - Document
+  producer: Retriever-search
+  consumers:
+  - TypeConvert-json
+- name: TextInput-query.text
+  value_types:
+  - Text
+  - str
+  producer: TextInput-query
+  consumers:
+  - Retriever-search
+- name: TextSplitter-chunks.documents
+  value_types:
+  - Document
+  producer: TextSplitter-chunks
+  consumers:
+  - Chroma-store
+- name: TypeConvert-json.converted
+  value_types:
+  - Message
+  - Text
+  - str
+  - JSON
+  - Data
+  - Table
+  - Document
+  producer: TypeConvert-json
+  consumers:
+  - JSONOutput-out
+capabilities:
+  streaming: false
+  memory: false
+  tools: false
+  rag: true
+required_environment:
+- OPENAI_API_KEY
+equivalence:
+  compare_messages: true
+  compare_json: true
+  compare_tool_calls: true
+  compare_stream_events: true

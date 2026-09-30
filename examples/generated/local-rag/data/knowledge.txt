@@ -1,0 +1,9 @@
+Local RAG reference knowledge.
+
+This file is loaded by the FileLoader node, split by the TextSplitter node,
+embedded by the OpenAI embeddings resource, indexed into the local Chroma
+store, and retrieved by the Retriever node for each incoming query.
+
+Section one covers retrieval.
+Section two covers persistence.
+Section three covers structured output.

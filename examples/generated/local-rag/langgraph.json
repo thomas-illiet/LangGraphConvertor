@@ -1,0 +1,6 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "local-rag": "local_rag.graph:graph"
+  }
+}
