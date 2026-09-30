@@ -1,0 +1,125 @@
+dsl_version: '2.0'
+flow:
+  id: basic-chat
+  name: Basic Chat
+  langflow_version: 1.12.0
+  source_sha256: cf3ecf95271e8a5590c62cb66e3622949a3edd11ee9afb096d094c9d3fa600ac
+components:
+- id: ChatInput-in
+  type: ChatInput
+  definition:
+    version: 1.0.0
+    sha256: 57afe342d67a6964a13a800a13cef31a24b86be865cb7caecff0d3e792673861
+    uri: dsl://components/ChatInput
+  display_name: Chat Input
+  category: input
+  config:
+    sender_name: User
+  extensions:
+    source_config: {}
+  inputs: []
+  outputs:
+  - name: message
+    types:
+    - Message
+    required: false
+    multiple: false
+- id: OpenAIModel-model
+  type: OpenAIModel
+  definition:
+    version: 1.0.0
+    sha256: 6775b8c5e1880a6f9d6de02bdfcd16a994ebb14fb1dfb2c5fb527ca33001eb15
+    uri: dsl://components/OpenAIModel
+  display_name: OpenAI Compatible Model
+  category: resource
+  config:
+    model: test-model
+    temperature: 0.0
+    max_tokens: 0
+    stream: true
+  extensions:
+    source_config: {}
+  inputs:
+  - name: input_value
+    types:
+    - Message
+    - PromptValue
+    - Text
+    - str
+    required: false
+    multiple: true
+  outputs:
+  - name: model
+    types:
+    - LanguageModel
+    required: false
+    multiple: false
+  - name: message
+    types:
+    - Message
+    required: false
+    multiple: false
+- id: ChatOutput-out
+  type: ChatOutput
+  definition:
+    version: 1.0.0
+    sha256: be819108504e7ebd50e5b9907085dc50ff6657dc5adeb17fe5adfd7f9d07fbcd
+    uri: dsl://components/ChatOutput
+  display_name: Chat Output
+  category: output
+  config:
+    sender_name: AI
+  extensions:
+    source_config: {}
+  inputs:
+  - name: input_value
+    types:
+    - Message
+    - Text
+    - JSON
+    required: true
+    multiple: false
+  outputs:
+  - name: message
+    types:
+    - Message
+    required: false
+    multiple: false
+connections:
+- source: ChatInput-in
+  source_port: message
+  target: OpenAIModel-model
+  target_port: input_value
+  types:
+  - Message
+- source: OpenAIModel-model
+  source_port: message
+  target: ChatOutput-out
+  target_port: input_value
+  types:
+  - Message
+state:
+- name: ChatInput-in.message
+  value_types:
+  - Message
+  producer: ChatInput-in
+  consumers:
+  - OpenAIModel-model
+- name: OpenAIModel-model.message
+  value_types:
+  - Message
+  producer: OpenAIModel-model
+  consumers:
+  - ChatOutput-out
+capabilities:
+  streaming: true
+  memory: false
+  tools: true
+  rag: false
+required_environment:
+- OPENAI_API_KEY
+equivalence:
+  compare_messages: true
+  compare_json: true
+  compare_tool_calls: true
+  compare_stream_events: true

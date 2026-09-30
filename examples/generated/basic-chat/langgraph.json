@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "basic_chat": "basic_chat.graph:graph"
+  },
+  "env": ".env"
+}

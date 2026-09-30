@@ -8,5 +8,5 @@ dist/
 build/
 *.egg-info/
 .env
-generated/
+/generated/
 .DS_Store
