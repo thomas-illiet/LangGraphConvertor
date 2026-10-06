@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from langflow_converter_mcp.component_definitions import FieldType, get_registry
+from langflow_converter_mcp.component_definitions import get_registry
 from langflow_converter_mcp.models import (
     Component,
     ComponentExtensions,
@@ -344,19 +344,21 @@ def validate_dsl_semantics(dsl: ConversionDSL) -> list[Diagnostic]:
                     component_id=component.id,
                 )
             )
-        secret_fields = {
-            field.name for field in definition.config if field.type is FieldType.SECRET
+        environment_fields = {
+            field.name: field.environment
+            for field in definition.config
+            if field.environment is not None
         }
-        for key in secret_fields:
+        for key, environment in environment_fields.items():
             value = component.config.get(key)
-            if value is not None and not (
-                isinstance(value, str) and value.startswith("${") and value.endswith("}")
-            ):
+            if value != f"${{{environment}}}":
                 diagnostics.append(
                     Diagnostic(
-                        code="dsl_secret_value",
+                        code="dsl_environment_value",
                         severity=Severity.CRITICAL,
-                        message=f"Secret DSL field {key!r} must reference an environment variable.",
+                        message=(
+                            f"Environment-backed DSL field {key!r} must reference {environment}."
+                        ),
                         component_id=component.id,
                     )
                 )

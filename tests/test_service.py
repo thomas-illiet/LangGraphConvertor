@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 import yaml
@@ -195,6 +196,46 @@ def test_project_inspection_rejects_src_prefixed_graph_modules(
 
     assert result.status is Status.ERROR
     assert any(item.code == "invalid_graph_module_path" for item in result.diagnostics)
+
+
+def test_project_inspection_requires_empty_environment_examples(
+    tmp_path: Path, supported_flow: dict[str, Any]
+) -> None:
+    """Generated projects declare every provider variable without committing values."""
+    node = supported_flow["data"]["nodes"][0]
+    node["data"]["type"] = "OpenAIModel"
+    node["data"]["node"]["template"] = {"model_name": {"value": "test-model"}}
+    supported_flow["data"]["edges"] = []
+    flow = tmp_path / "provider.json"
+    flow.write_text(json.dumps(supported_flow), encoding="utf-8")
+    service = ConversionService(Workspace(tmp_path))
+    conversion_id = service.inspect_langflow_export(flow.name).conversion_id
+    assert conversion_id
+    project = tmp_path / "generated"
+    project.mkdir()
+    for relative in ("pyproject.toml", "uv.lock"):
+        (project / relative).write_text("{}", encoding="utf-8")
+    (project / "langgraph.json").write_text(
+        json.dumps({"graphs": {"agent": "app.graph:graph"}}), encoding="utf-8"
+    )
+    service.build_conversion_dsl(conversion_id, "generated/workflow.yaml")
+    (project / "src").mkdir()
+    (project / "tests").mkdir()
+
+    (project / ".env.example").write_text("OPENAI_API_KEY=committed\n", encoding="utf-8")
+    invalid = service.inspect_generated_project("generated", conversion_id)
+
+    assert invalid.status is Status.ERROR
+    assert {item.code for item in invalid.diagnostics} == {
+        "environment_example_value",
+        "missing_environment_example",
+    }
+
+    (project / ".env.example").write_text("OPENAI_BASE_URL=\nOPENAI_API_KEY=\n", encoding="utf-8")
+    valid = service.inspect_generated_project("generated", conversion_id)
+
+    assert valid.status is Status.OK
+    assert valid.diagnostics == []
 
 
 @pytest.mark.asyncio

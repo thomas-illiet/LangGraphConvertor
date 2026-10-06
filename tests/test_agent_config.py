@@ -69,6 +69,17 @@ def test_conversion_agent_declares_the_deterministic_tool_order() -> None:
     assert "Do not call `langflow-converter_run_differential_tests`" in prompt
 
 
+def test_conversion_agent_requires_runtime_openai_provider_configuration() -> None:
+    """Generated clients must use mandatory environment-only provider settings."""
+    _, prompt = _agent_document()
+    normalized_prompt = " ".join(prompt.split())
+
+    assert "OPENAI_BASE_URL" in normalized_prompt
+    assert "OPENAI_API_KEY" in normalized_prompt
+    assert "Never fall back to an endpoint or credential" in normalized_prompt
+    assert "Declare every `required_environment` entry" in normalized_prompt
+
+
 def test_project_does_not_force_the_conversion_agent_as_default() -> None:
     """Interactive users must continue to select the conversion agent manually."""
     config_path = Path(__file__).parents[1] / "opencode.jsonc"

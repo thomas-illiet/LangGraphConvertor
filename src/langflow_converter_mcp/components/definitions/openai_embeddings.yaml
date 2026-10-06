@@ -1,4 +1,4 @@
-definition_version: "1.0.0"
+definition_version: "2.0.0"
 type: OpenAIEmbeddings
 aliases: [OpenAIEmbeddings]
 langflow_series: 1.12.x
@@ -16,13 +16,15 @@ config:
   - name: base_url
     source_keys: [base_url, openai_api_base]
     type: string
-    description: Optional OpenAI-compatible API base URL.
-    required: false
-    overridable: true
+    description: Runtime OpenAI-compatible API base URL.
+    required: true
+    environment: OPENAI_BASE_URL
+    overridable: false
   - name: api_key
     source_keys: [api_key, openai_api_key]
     type: secret
     description: Runtime embedding API credential.
+    required: true
     environment: OPENAI_API_KEY
     overridable: false
   - name: dimensions
@@ -46,12 +48,15 @@ recipe:
   async_supported: true
   streaming: false
   imports: [langchain_openai.OpenAIEmbeddings]
-  construction: [Instantiate OpenAIEmbeddings with normalized provider settings.]
+  construction: [Require OPENAI_BASE_URL and OPENAI_API_KEY at runtime and pass both explicitly to OpenAIEmbeddings with the normalized model configuration.]
   invocation: Inject the resource into the connected vector store or embedding node.
   error_handling: [Report provider failures without exposing credentials.]
-invariants: [Use the same dimensions for indexing and querying.]
+invariants: [Never embed the API key or source endpoint, Require non-empty OPENAI_BASE_URL and OPENAI_API_KEY, Use the same dimensions for indexing and querying.]
 tests:
   - name: embeds_documents_and_query
-    scenario: Mock document and query embedding requests.
-    expected: Both paths use the same configured model and dimensions.
+    scenario: Mock document and query requests against parameterized local and remote OpenAI-compatible endpoints.
+    expected: Both paths use the selected DSL model, runtime endpoint and token, and the same dimensions.
+  - name: rejects_missing_provider_environment
+    scenario: Start with either OPENAI_BASE_URL or OPENAI_API_KEY absent or empty.
+    expected: Construction fails with an explicit configuration error before a provider request.
 ignored_source_fields: [chunk_size]

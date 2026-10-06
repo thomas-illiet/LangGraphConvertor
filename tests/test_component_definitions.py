@@ -45,6 +45,21 @@ def test_component_config_schema_is_closed_and_typed() -> None:
     assert schema["properties"]["api_key"]["type"] == "string"
 
 
+def test_openai_provider_fields_require_runtime_environment() -> None:
+    """Chat and embedding clients share mandatory runtime provider variables."""
+    registry = get_registry()
+
+    for component_type in ("OpenAIModel", "OpenAIEmbeddings"):
+        definition = registry.resolve(component_type)
+        assert definition is not None
+        assert definition.definition_version == "2.0.0"
+        fields = {field.name: field for field in definition.config}
+        assert fields["base_url"].required
+        assert fields["base_url"].environment == "OPENAI_BASE_URL"
+        assert fields["api_key"].required
+        assert fields["api_key"].environment == "OPENAI_API_KEY"
+
+
 def test_yaml_definitions_are_package_resources() -> None:
     """All YAML contracts are discoverable through importlib.resources for wheels."""
     root = importlib.resources.files("langflow_converter_mcp.components.definitions")

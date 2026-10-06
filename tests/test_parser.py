@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from typing import Any
 
 from langflow_converter_mcp.models import Severity
@@ -54,6 +55,45 @@ def test_embedded_secret_is_replaced_and_blocked(supported_flow: dict[str, Any])
     assert dsl.components[0].config["api_key"].startswith("${")
     assert "should-not-survive" not in dsl.model_dump_json()
     assert diagnostics[0].code == "embedded_secret"
+
+
+def test_openai_model_uses_only_runtime_provider_configuration(
+    supported_flow: dict[str, Any],
+) -> None:
+    """A source endpoint is replaced by mandatory runtime provider placeholders."""
+    node = supported_flow["data"]["nodes"][0]
+    node["data"]["type"] = "OpenAIModel"
+    template = node["data"]["node"]["template"]
+    template["model_name"] = {"value": "test-model"}
+    template["openai_api_base"] = {"value": "https://source.invalid/v1"}
+
+    dsl, diagnostics = parse_export(json.dumps(supported_flow))
+
+    config = dsl.components[0].config
+    assert config["model"] == "test-model"
+    assert config["base_url"] == "${OPENAI_BASE_URL}"
+    assert config["api_key"] == "${OPENAI_API_KEY}"
+    assert dsl.required_environment == ["OPENAI_API_KEY", "OPENAI_BASE_URL"]
+    assert "source.invalid" not in dsl.model_dump_json()
+    assert diagnostics == []
+
+
+def test_openai_embeddings_share_runtime_provider_configuration(
+    supported_flow: dict[str, Any],
+) -> None:
+    """Embedding configuration uses the same mandatory endpoint and token variables."""
+    flow = deepcopy(supported_flow)
+    node = flow["data"]["nodes"][0]
+    node["data"]["type"] = "OpenAIEmbeddings"
+    node["data"]["node"]["template"] = {"model_name": {"value": "embed-model"}}
+    flow["data"]["edges"] = []
+
+    dsl, diagnostics = parse_export(json.dumps(flow))
+
+    assert dsl.components[0].config["base_url"] == "${OPENAI_BASE_URL}"
+    assert dsl.components[0].config["api_key"] == "${OPENAI_API_KEY}"
+    assert dsl.required_environment == ["OPENAI_API_KEY", "OPENAI_BASE_URL"]
+    assert diagnostics == []
 
 
 def test_semantic_validation_rejects_tampered_ports(

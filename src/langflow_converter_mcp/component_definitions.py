@@ -317,7 +317,7 @@ class ComponentDefinitionRegistry:
             _, field_diagnostics = self._validate_value(field, value, component_id)
             diagnostics.extend(field_diagnostics)
         for field in definition.config:
-            if field.required and field.name not in config and field.type is not FieldType.SECRET:
+            if field.required and field.name not in config:
                 diagnostics.append(
                     Diagnostic(
                         code="missing_component_field",
@@ -382,9 +382,11 @@ class ComponentDefinitionRegistry:
                 environment.add(field.environment)
             if field.name in seen:
                 continue
-            if field.default is not None:
+            if field.environment:
+                config[field.name] = f"${{{field.environment}}}"
+            elif field.default is not None:
                 config[field.name] = field.default
-            elif field.required and field.type is not FieldType.SECRET:
+            elif field.required:
                 diagnostics.append(
                     Diagnostic(
                         code="missing_component_field",
@@ -449,6 +451,8 @@ class ComponentDefinitionRegistry:
                     )
                 )
                 return None, diagnostics
+        if field.environment:
+            return f"${{{field.environment}}}", diagnostics
         return value, diagnostics
 
 

@@ -99,6 +99,21 @@ compatible package, base URL, API-key environment reference, and model map. A ba
 not sufficient. Keep provider credentials outside this repository and inject configuration into
 the OpenCode process.
 
+## Generated-project provider configuration
+
+Generated projects that use `OpenAIModel` or `OpenAIEmbeddings` require both provider values at
+runtime. Copy the generated `.env.example` to `.env` and set:
+
+```dotenv
+OPENAI_BASE_URL=https://openai-compatible.example/v1
+OPENAI_API_KEY=replace-with-runtime-token
+```
+
+The generated code fails before making a provider request if either value is absent or empty. It
+passes both values explicitly to `ChatOpenAI` and `OpenAIEmbeddings`; it never falls back to an
+endpoint or credential exported by Langflow. The model identifier and other non-provider settings
+remain defined by the normalized conversion DSL. Do not commit the populated `.env` file.
+
 ## Security boundary
 
 - Every file path is resolved below `--workspace`, including symlinks.

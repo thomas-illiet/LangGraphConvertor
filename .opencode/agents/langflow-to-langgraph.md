@@ -63,7 +63,14 @@ Follow this mandatory workflow in order, using the fully qualified MCP tool name
    `src/<package_name>/`. Never create the same package at the project root. In `langgraph.json`,
    declare the graph as `<package_name>.graph:graph`; never prefix the module with `src.`. Configure
    the uv project and pytest so the `src/` package is importable. Declare `ruff` and `pytest` as
-   project-local development dependencies in `[dependency-groups].dev`.
+   project-local development dependencies in `[dependency-groups].dev`. Declare every
+   `required_environment` entry in `.env.example` with an empty value. For OpenAI-compatible model
+   and embedding components, require non-empty `OPENAI_BASE_URL` and `OPENAI_API_KEY` at runtime,
+   fail with an explicit configuration error when either is absent or empty, and pass both values
+   explicitly to the LangChain client. Never fall back to an endpoint or credential from the
+   Langflow export or DSL; the model identifier and non-provider settings continue to come from the
+   normalized DSL. Contract-test missing and empty provider values, local and remote mock base URLs,
+   and shared provider configuration when a flow contains both chat and embedding clients.
 7. Run `uv lock --directory <generated-project-directory>` to create `uv.lock`. If dependency
    resolution fails, correct only the dependency metadata identified by the resolver and retry.
    Never remove the mandatory local development tools to make locking succeed. Do not run any

@@ -69,6 +69,21 @@ def _unique_diagnostics(items: Sequence[Diagnostic]) -> list[Diagnostic]:
     return result
 
 
+def _environment_example_values(content: str) -> dict[str, str]:
+    """Parse simple dotenv assignments without expanding or exposing their values."""
+    values: dict[str, str] = {}
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line.removeprefix("export ").lstrip()
+        name, separator, value = line.partition("=")
+        if separator and name.strip():
+            values[name.strip()] = value.strip()
+    return values
+
+
 class ConversionService:
     """Owns conversion sessions while keeping protocol concerns out of the core."""
 
@@ -398,6 +413,32 @@ class ConversionService:
                     path="tests",
                 )
             )
+        dsl = self.dsl_by_id.get(conversion_id)
+        environment_example = project / ".env.example"
+        if dsl is not None and environment_example.is_file():
+            declared = _environment_example_values(environment_example.read_text(encoding="utf-8"))
+            for name in dsl.required_environment:
+                if name not in declared:
+                    diagnostics.append(
+                        Diagnostic(
+                            code="missing_environment_example",
+                            severity=Severity.MAJOR,
+                            message=f".env.example must declare required variable {name}.",
+                            path=".env.example",
+                        )
+                    )
+                elif declared[name]:
+                    diagnostics.append(
+                        Diagnostic(
+                            code="environment_example_value",
+                            severity=Severity.MAJOR,
+                            message=f".env.example must leave required variable {name} empty.",
+                            path=".env.example",
+                            recommendation=(
+                                "Document the variable without committing a runtime value."
+                            ),
+                        )
+                    )
         self._replace_diagnostics(
             conversion_id,
             {
@@ -407,6 +448,8 @@ class ConversionService:
                 "generated_dsl_mismatch",
                 "duplicate_source_package",
                 "invalid_graph_module_path",
+                "missing_environment_example",
+                "environment_example_value",
             },
             diagnostics,
         )
